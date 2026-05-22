@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>b3 — Development Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --mint:#A8D5BA;--mint-light:#E8F5EE;--mint-dark:#5FA882;--mint-text:#2D6B4A;
+  --bg:#FAFAFA;--surface:#FFFFFF;--border:#EBEBEB;--border-strong:#D4D4D4;
+  --text:#1A1A1A;--text-2:#5A5A5A;--text-3:#9A9A9A;
+  --danger:#E85555;--danger-bg:#FEF0F0;
+  --warning:#D97706;--warning-bg:#FFFBEB;
+  --success:#16A34A;--success-bg:#F0FDF4;
+  --sidebar-w:220px;
+  --font:'Instrument Sans',sans-serif;--mono:'DM Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);font-family:var(--font);color:var(--text);font-size:14px}
+
+/* AUTH */
+#auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:48px 44px;width:380px}
+.auth-logo{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.auth-logo-box{width:36px;height:36px;background:var(--text);border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;letter-spacing:-0.5px;position:relative}
+.auth-logo-dot{width:7px;height:7px;border-radius:50%;background:var(--mint);position:absolute;right:-2px;bottom:-2px;border:1.5px solid var(--bg)}
+.auth-name{font-size:20px;font-weight:600;letter-spacing:-0.4px}
+.auth-subtitle{font-size:13px;color:var(--text-3);margin-bottom:32px}
+.auth-label{font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:6px;display:block}
+.auth-input{width:100%;padding:10px 14px;border:1px solid var(--border-strong);border-radius:8px;font-family:var(--font);font-size:14px;color:var(--text);background:var(--bg);margin-bottom:16px;outline:none;transition:border-color .15s}
+.auth-input:focus{border-color:var(--mint)}
+.auth-btn{width:100%;padding:11px;background:var(--text);color:#fff;border:none;border-radius:8px;font-family:var(--font);font-size:14px;font-weight:500;cursor:pointer;transition:opacity .15s;margin-top:4px}
+.auth-btn:hover{opacity:.85}
+.auth-error{font-size:12px;color:var(--danger);margin-top:10px}
+
+/* APP SHELL */
+#app{display:none;height:100vh;overflow:hidden}
+.layout{display:flex;height:100%}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%;overflow-y:auto}
+.sidebar-logo{padding:20px 18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.logo-box{width:30px;height:30px;background:var(--text);border-radius:7px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;position:relative;flex-shrink:0}
+.logo-dot{width:6px;height:6px;border-radius:50%;background:var(--mint);position:absolute;right:-2px;bottom:-2px;border:1.5px solid var(--surface)}
+.logo-name{font-size:15px;font-weight:600;letter-spacing:-.3px}
+.logo-sub{font-size:10px;color:var(--text-3);letter-spacing:.04em}
+.nav-section{padding:14px 10px 6px}
+.nav-label{font-size:10px;font-weight:600;color:var(--text-3);letter-spacing:.08em;text-transform:uppercase;padding:0 8px;margin-bottom:4px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:7px;cursor:pointer;color:var(--text-2);font-size:13px;font-weight:400;transition:background .1s,color .1s;user-select:none}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--mint-light);color:var(--mint-text);font-weight:500}
+.nav-icon{font-size:14px;width:16px;text-align:center;opacity:.7}
+.nav-item.active .nav-icon{opacity:1}
+.nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px}
+.sidebar-footer{margin-top:auto;padding:14px 10px;border-top:1px solid var(--border)}
+.user-pill{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;background:var(--bg)}
+.user-avatar{width:26px;height:26px;border-radius:50%;background:var(--mint-light);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--mint-text);flex-shrink:0}
+.user-name{font-size:13px;font-weight:500;color:var(--text)}
+.user-role{font-size:11px;color:var(--text-3)}
+.logout-btn{margin-left:auto;font-size:11px;color:var(--text-3);cursor:pointer;padding:3px 6px;border-radius:4px;transition:color .1s}
+.logout-btn:hover{color:var(--danger)}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.page-header{padding:26px 30px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.page-title{font-size:22px;font-weight:600;letter-spacing:-.5px}
+.page-sub{font-size:13px;color:var(--text-3);margin-top:3px}
+.page-content{padding:22px 30px 40px;flex:1}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:7px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn-primary{background:var(--text);color:#fff}
+.btn-primary:hover{opacity:.85}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border-strong)}
+.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-mint{background:var(--mint-light);color:var(--mint-text);border:1px solid var(--mint)}
+.btn-mint:hover{background:var(--mint);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-danger-ghost{background:transparent;color:var(--danger);border:1px solid #F9C4C4}
+.btn-danger-ghost:hover{background:var(--danger-bg)}
+
+/* METRICS */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;cursor:pointer;transition:border-color .15s}
+.metric-card:hover{border-color:var(--border-strong)}
+.metric-label{font-size:11px;font-weight:500;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.metric-value{font-size:24px;font-weight:600;letter-spacing:-.5px;font-family:var(--mono)}
+.metric-sub{font-size:11px;color:var(--text-3);margin-top:3px}
+.metric-accent{border-left:3px solid var(--mint)}
+
+/* ALERTS */
+.alert-strip{display:flex;flex-direction:column;gap:6px;margin-bottom:20px}
+.alert{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:8px;font-size:13px}
+.alert-danger{background:var(--danger-bg);color:#C13030;border:1px solid #F9C4C4}
+.alert-warning{background:var(--warning-bg);color:#92400E;border:1px solid #FCD34D}
+.alert-dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+/* TABLE */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;padding:11px 15px;border-bottom:1px solid var(--border);background:var(--bg)}
+td{padding:12px 15px;border-bottom:1px solid var(--border);font-size:13.5px;color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.clickable{cursor:pointer;transition:background .1s}
+tr.clickable:hover td{background:var(--bg)}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-active{background:var(--success-bg);color:var(--success)}
+.badge-construction{background:var(--warning-bg);color:var(--warning)}
+.badge-prospecting{background:#EEF2FF;color:#4338CA}
+.badge-contract{background:#FDF4FF;color:#7E22CE}
+.badge-leaseup{background:var(--mint-light);color:var(--mint-text)}
+.badge-exited{background:#F3F4F6;color:#6B7280}
+.badge-hold{background:#F9FAFB;color:#9CA3AF;border:1px solid var(--border)}
+.badge-open{background:#EEF2FF;color:#4338CA}
+.badge-inprog{background:var(--warning-bg);color:var(--warning)}
+.badge-done{background:var(--success-bg);color:var(--success)}
+.badge-overdue{background:var(--danger-bg);color:var(--danger)}
+.badge-in{background:var(--success-bg);color:var(--success)}
+.badge-out{background:var(--danger-bg);color:var(--danger)}
+
+/* TABS */
+.tab-bar{display:flex;border-bottom:1px solid var(--border);margin-bottom:22px}
+.tab{padding:9px 16px;font-size:13px;font-weight:500;color:var(--text-3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--mint-dark)}
+
+/* MODALS */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;padding:26px 30px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:18px;letter-spacing:-.3px}
+.modal-close{position:absolute;top:18px;right:18px;width:27px;height:27px;border-radius:6px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--text-3)}
+.modal-close:hover{color:var(--text)}
+.form-row{margin-bottom:14px}
+.form-label{font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:5px;display:block}
+.form-input,.form-select,.form-textarea{width:100%;padding:8px 11px;border:1px solid var(--border-strong);border-radius:7px;font-family:var(--font);font-size:13.5px;color:var(--text);background:var(--bg);outline:none;transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--mint)}
+.form-textarea{resize:vertical;min-height:72px}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+
+/* DEAL DETAIL */
+.deal-back{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--text-3);cursor:pointer;margin-bottom:12px}
+.deal-back:hover{color:var(--text)}
+.deal-meta{display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap}
+.deal-address{font-size:13px;color:var(--text-3)}
+
+/* CAPITAL STACK */
+.stack-bar{border-radius:8px;overflow:hidden;height:32px;display:flex;margin:14px 0}
+.stack-segment{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;cursor:default;min-width:2px}
+.stack-segment:hover{opacity:.85}
+
+/* TASKS */
+.task-filters{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.filter-btn{padding:4px 11px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);cursor:pointer;transition:all .15s}
+.filter-btn.active{background:var(--mint-light);border-color:var(--mint);color:var(--mint-text)}
+.filter-btn:hover:not(.active){background:var(--bg)}
+
+/* MILESTONE */
+.milestone-item{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.milestone-item:last-child{border-bottom:none}
+.milestone-check{width:17px;height:17px;border-radius:4px;border:1.5px solid var(--border-strong);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:2px;transition:all .15s;font-size:10px}
+.milestone-check.done{background:var(--mint-dark);border-color:var(--mint-dark);color:#fff}
+.milestone-title{font-size:13.5px;font-weight:500}
+.milestone-title.done{text-decoration:line-through;color:var(--text-3)}
+.milestone-meta{font-size:12px;color:var(--text-3);margin-top:2px}
+.milestone-links{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.milestone-link{font-size:11px;color:var(--mint-text);background:var(--mint-light);padding:2px 7px;border-radius:4px;text-decoration:none}
+
+/* MISC */
+.loading{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text-3);font-size:13px}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--mint-dark);border-radius:50%;animation:spin .7s linear infinite;margin-right:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.money{font-family:var(--mono)}
+.money-pos{color:var(--success)}
+.money-neg{color:var(--danger)}
+.empty-state{text-align:center;padding:48px 20px;color:var(--text-3)}
+.empty-state-icon{font-size:28px;margin-bottom:10px;opacity:.35}
+.empty-state p{font-size:13px}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.section-title{font-size:12px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.05em}
+.watermark{font-size:11px;color:var(--text-3)}
+.watermark span{color:var(--text-2);font-weight:500}
+.search-wrap{position:relative}
+.search-input{padding:7px 11px 7px 32px;border:1px solid var(--border-strong);border-radius:8px;font-family:var(--font);font-size:13px;color:var(--text);background:var(--bg);outline:none;width:220px;transition:border-color .15s}
+.search-input:focus{border-color:var(--mint)}
+.search-icon{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dir-in{color:var(--success);font-weight:500;font-family:var(--mono)}
+.dir-out{color:var(--danger);font-weight:500;font-family:var(--mono)}
+.phase-breakdown{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:22px}
+.phase-pill{padding:5px 12px;border-radius:7px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:6px;cursor:pointer}
+.phase-pill:hover{border-color:var(--border-strong)}
+.ov-label{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.ov-value{font-size:14px;font-weight:500}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 22px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px}
+.note-pill{font-size:11px;color:var(--text-3);background:var(--bg);border:1px solid var(--border);padding:2px 8px;border-radius:4px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-box">b3<div class="auth-logo-dot"></div></div>
+      <div class="auth-name">b3</div>
+    </div>
+    <div class="auth-subtitle">Development Operations Dashboard</div>
+    <label class="auth-label">Email</label>
+    <input class="auth-input" id="auth-email" type="email" placeholder="you@b3dev.com" autocomplete="email">
+    <label class="auth-label">Password</label>
+    <input class="auth-input" id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    <button class="auth-btn" id="auth-submit">Sign in</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-box">b3<div class="logo-dot"></div></div>
+        <div><div class="logo-name">b3</div><div class="logo-sub">Development</div></div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Main</div>
+        <div class="nav-item active" data-page="home"><span class="nav-icon">⌂</span> Home</div>
+        <div class="nav-item" data-page="deals"><span class="nav-icon">◫</span> Deals</div>
+        <div class="nav-item" data-page="tasks"><span class="nav-icon">✓</span> Tasks <span class="nav-badge" id="tasks-badge" style="display:none"></span></div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Account</div>
+        <div class="nav-item" data-page="settings"><span class="nav-icon">⚙</span> Settings</div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="user-pill">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <div><div class="user-name" id="user-name-display">—</div><div class="user-role" id="user-role-display">Member</div></div>
+          <div class="logout-btn" id="logout-btn" title="Sign out">↩</div>
+        </div>
+      </div>
+    </div>
+    <div class="main" id="main-content">
+      <div class="loading"><div class="spinner"></div>Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-backdrop" id="modal-deal"><div class="modal" id="modal-deal-inner"></div></div>
+<div class="modal-backdrop" id="modal-task"><div class="modal" id="modal-task-inner"></div></div>
+<div class="modal-backdrop" id="modal-milestone"><div class="modal" id="modal-milestone-inner"></div></div>
+<div class="modal-backdrop" id="modal-capital"><div class="modal" id="modal-capital-inner"></div></div>
+<div class="modal-backdrop" id="modal-payment"><div class="modal" id="modal-payment-inner"></div></div>
+<div class="modal-backdrop" id="modal-link"><div class="modal" id="modal-link-inner"></div></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ─── STATE ───────────────────────────────────────────────────
+let currentUser = null;
+let currentUserProfile = null;
+let currentPage = 'home';
+let currentDealId = null;
+let currentDealTab = 'overview';
+let allDeals = [];
+let allTasks = [];
+let allUsers = [];
+let taskFilter = 'all';
+
+// ─── INIT ────────────────────────────────────────────────────
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { currentUser = session.user; await loadApp(); }
+  else showAuth();
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN') { currentUser = session.user; await loadApp(); }
+    else if (event === 'SIGNED_OUT') { currentUser = null; showAuth(); }
+  });
+}
+
+function showAuth() {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+async function loadApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  await loadUsers();
+  setupNav();
+  setUserDisplay();
+  await navigateTo('home');
+}
+
+// ─── AUTH ────────────────────────────────────────────────────
+document.getElementById('auth-submit').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass = document.getElementById('auth-pass').value;
+  const errEl = document.getElementById('auth-error');
+  errEl.textContent = '';
+  const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) errEl.textContent = error.message;
+});
+document.getElementById('auth-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('auth-submit').click();
+});
+document.getElementById('logout-btn').addEventListener('click', () => sb.auth.signOut());
+
+// ─── USERS ───────────────────────────────────────────────────
+async function loadUsers() {
+  const { data } = await sb.from('users').select('*').order('name');
+  allUsers = data || [];
+  const me = allUsers.find(u => u.auth_id === currentUser.id);
+  currentUserProfile = me || { name: currentUser.email.split('@')[0], role: 'member' };
+}
+
+function setUserDisplay() {
+  const name = currentUserProfile?.name || currentUser.email.split('@')[0];
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('user-name-display').textContent = name;
+  document.getElementById('user-role-display').textContent = currentUserProfile?.role || 'member';
+}
+
+function userName(authId) {
+  if (!authId) return '—';
+  const u = allUsers.find(u => u.auth_id === authId);
+  return u ? u.name : '?';
+}
+
+// ─── NAV ─────────────────────────────────────────────────────
+function setupNav() {
+  document.querySelectorAll('.nav-item[data-page]').forEach(el => {
+    el.addEventListener('click', () => navigateTo(el.dataset.page));
+  });
+}
+
+async function navigateTo(page, dealId) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  const navEl = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (navEl) navEl.classList.add('active');
+  currentPage = page;
+  currentDealId = dealId || null;
+  const main = document.getElementById('main-content');
+  main.innerHTML = '<div class="loading"><div class="spinner"></div>Loading...</div>';
+  if (page === 'home') await renderHome();
+  else if (page === 'deals') await renderDeals();
+  else if (page === 'deal-detail') await renderDealDetail(currentDealId);
+  else if (page === 'tasks') await renderTasks();
+  else if (page === 'settings') await renderSettings();
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────
+function fmt$(n) {
+  if (n == null || n === '') return '—';
+  return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+function today() { return new Date().toISOString().split('T')[0]; }
+function isOverdue(date, status) { return date && date < today() && status !== 'Done'; }
+function isDueSoon(date, status) {
+  if (!date || status === 'Done') return false;
+  const diff = (new Date(date + 'T12:00:00') - new Date()) / 86400000;
+  return diff >= 0 && diff <= 7;
+}
+function greeting() {
+  const h = new Date().getHours();
+  return h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+}
+function phaseBadge(phase) {
+  const map = { 'Prospecting':'badge-prospecting','Under Contract':'badge-contract','Active':'badge-active','Construction':'badge-construction','Lease-up':'badge-leaseup','Stabilized':'badge-leaseup','Exited':'badge-exited','On Hold':'badge-hold','Dead':'badge-hold' };
+  return `<span class="badge ${map[phase]||'badge-hold'}">${phase||'—'}</span>`;
+}
+function taskStatusBadge(status, due) {
+  if (status === 'Done') return `<span class="badge badge-done">Done</span>`;
+  if (isOverdue(due, status)) return `<span class="badge badge-overdue">Overdue</span>`;
+  if (status === 'In Progress') return `<span class="badge badge-inprog">In Progress</span>`;
+  return `<span class="badge badge-open">Open</span>`;
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function openModal(id, html) {
+  document.getElementById(id + '-inner').innerHTML = html;
+  document.getElementById(id).classList.add('open');
+  document.getElementById(id).onclick = e => { if (e.target === document.getElementById(id)) closeModal(id); };
+}
+function updateTasksBadge(n) {
+  const b = document.getElementById('tasks-badge');
+  if (n > 0) { b.textContent = n; b.style.display = ''; } else b.style.display = 'none';
+}
+
+// ─── HOME ─────────────────────────────────────────────────────
+async function renderHome() {
+  const [{ data: deals }, { data: tasks }] = await Promise.all([
+    sb.from('deals').select('*').order('created_at', { ascending: false }),
+    sb.from('tasks').select('*')
+  ]);
+  allDeals = deals || [];
+  allTasks = tasks || [];
+  const openTasks = allTasks.filter(t => t.status !== 'Done');
+  const activeDeals = allDeals.filter(d => !['Exited','Dead'].includes(d.phase));
+  const totalCapital = activeDeals.reduce((s, d) => s + Number(d.total_cost || 0), 0);
+  const overdueTasks = openTasks.filter(t => isOverdue(t.due_date, t.status));
+  const dueSoonTasks = openTasks.filter(t => isDueSoon(t.due_date, t.status));
+  const myTasks = openTasks.filter(t => t.assigned_to === currentUser.id);
+  updateTasksBadge(overdueTasks.length);
+
+  const phases = {};
+  allDeals.forEach(d => { phases[d.phase] = (phases[d.phase] || 0) + 1; });
+  const phaseColors = { 'Prospecting':'#C7D2FE','Under Contract':'#E9D5FF','Active':'#BBF7D0','Construction':'#FDE68A','Lease-up':'#A8D5BA','Stabilized':'#A7F3D0','Exited':'#E5E7EB','On Hold':'#F3F4F6','Dead':'#F3F4F6' };
+  const phaseOrder = ['Prospecting','Under Contract','Active','Construction','Lease-up','Stabilized','Exited','On Hold','Dead'];
+
+  const alerts = [];
+  overdueTasks.slice(0,5).forEach(t => {
+    const deal = allDeals.find(d => d.id === t.deal_id);
+    alerts.push(`<div class="alert alert-danger"><div class="alert-dot"></div><strong>${t.title}</strong>&nbsp;— ${userName(t.assigned_to)} · ${deal ? deal.name : ''} · due ${fmtDate(t.due_date)}</div>`);
+  });
+  dueSoonTasks.slice(0,3).forEach(t => {
+    const deal = allDeals.find(d => d.id === t.deal_id);
+    alerts.push(`<div class="alert alert-warning"><div class="alert-dot"></div>Due soon: <strong>${t.title}</strong>&nbsp;— ${userName(t.assigned_to)} · ${deal ? deal.name : ''} · ${fmtDate(t.due_date)}</div>`);
+  });
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div>
+        <div class="page-title">Good ${greeting()}, ${(currentUserProfile?.name||'there').split(' ')[0]}</div>
+        <div class="page-sub">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</div>
+      </div>
+      <div class="toolbar">
+        <button class="btn btn-ghost btn-sm" onclick="openNewDeal()">+ New Deal</button>
+      </div>
+    </div>
+    <div class="page-content">
+      ${alerts.length ? `<div class="alert-strip">${alerts.join('')}</div>` : ''}
+      <div class="metric-grid">
+        <div class="metric-card metric-accent" onclick="navigateTo('deals')">
+          <div class="metric-label">Active Deals</div>
+          <div class="metric-value">${activeDeals.length}</div>
+          <div class="metric-sub">${allDeals.length} total</div>
+        </div>
+        <div class="metric-card metric-accent">
+          <div class="metric-label">Total Capital</div>
+          <div class="metric-value" style="font-size:18px">${totalCapital > 0 ? fmt$(totalCapital) : '—'}</div>
+          <div class="metric-sub">active deals</div>
+        </div>
+        <div class="metric-card" onclick="navigateTo('tasks')">
+          <div class="metric-label">Open Tasks</div>
+          <div class="metric-value" style="${overdueTasks.length?'color:var(--danger)':''}">${openTasks.length}</div>
+          <div class="metric-sub">${overdueTasks.length} overdue</div>
+        </div>
+        <div class="metric-card" onclick="navigateTo('tasks')">
+          <div class="metric-label">My Tasks</div>
+          <div class="metric-value">${myTasks.length}</div>
+          <div class="metric-sub">${dueSoonTasks.filter(t=>t.assigned_to===currentUser.id).length} due this week</div>
+        </div>
+      </div>
+      <div class="section-header" style="margin-bottom:8px">
+        <div class="section-title">Portfolio by Phase</div>
+        <button class="btn btn-ghost btn-sm" onclick="navigateTo('deals')">All deals →</button>
+      </div>
+      <div class="phase-breakdown">
+        ${phaseOrder.filter(p=>phases[p]).map(p=>`
+          <div class="phase-pill" onclick="navigateTo('deals')">
+            <div style="width:7px;height:7px;border-radius:50%;background:${phaseColors[p]};border:1px solid rgba(0,0,0,.1)"></div>
+            <span style="color:var(--text-2)">${p}</span>
+            <span style="font-weight:600;font-family:var(--mono)">${phases[p]}</span>
+          </div>
+        `).join('')}
+        ${Object.keys(phases).length===0?'<span style="color:var(--text-3);font-size:13px">No deals yet — run the seed SQL to import your properties</span>':''}
+      </div>
+      <div class="section-header">
+        <div class="section-title">All Deals</div>
+      </div>
+      <div class="table-wrap">
+        ${allDeals.length===0?'<div class="empty-state"><div class="empty-state-icon">◫</div><p>No deals yet. Run the seed SQL to import your properties.</p></div>':`
+        <table>
+          <thead><tr><th>Property</th><th>Phase</th><th>Total Cost</th><th>Open Tasks</th></tr></thead>
+          <tbody>
+            ${allDeals.map(d => {
+              const dt = allTasks.filter(t => t.deal_id === d.id && t.status !== 'Done');
+              const od = dt.filter(t => isOverdue(t.due_date, t.status));
+              return `<tr class="clickable" onclick="navigateTo('deal-detail','${d.id}')">
+                <td style="font-weight:500">${d.name}</td>
+                <td>${phaseBadge(d.phase)}</td>
+                <td class="money">${fmt$(d.total_cost)}</td>
+                <td>${dt.length>0?`<span style="color:${od.length?'var(--danger)':'var(--text)'}">${dt.length}${od.length?` <span style="font-size:11px;color:var(--danger)">(${od.length} overdue)</span>`:''}</span>`:'<span style="color:var(--text-3)">—</span>'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`}
+      </div>
+    </div>`;
+}
+
+// ─── DEALS LIST ───────────────────────────────────────────────
+async function renderDeals() {
+  const { data: deals } = await sb.from('deals').select('*').order('name');
+  allDeals = deals || [];
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Deals</div><div class="page-sub">${allDeals.length} properties</div></div>
+      <div class="toolbar">
+        <div class="search-wrap"><span class="search-icon">⌕</span><input class="search-input" id="deal-search" placeholder="Search..." oninput="filterDealsTable()"></div>
+        <button class="btn btn-primary" onclick="openNewDeal()">+ New Deal</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="table-wrap">
+        ${allDeals.length===0?'<div class="empty-state"><p>No deals yet.</p></div>':`
+        <table>
+          <thead><tr><th>Property</th><th>Phase</th><th>Type</th><th>Acquisition</th><th>Total Cost</th><th>Close Date</th><th>Target Exit</th></tr></thead>
+          <tbody id="deals-tbody">
+            ${allDeals.map(d=>`
+              <tr class="clickable" data-search="${(d.name||'').toLowerCase()} ${(d.address||'').toLowerCase()}" onclick="navigateTo('deal-detail','${d.id}')">
+                <td><div style="font-weight:500">${d.name}</div>${d.address?`<div style="font-size:12px;color:var(--text-3)">${d.address}</div>`:''}</td>
+                <td>${phaseBadge(d.phase)}</td>
+                <td style="color:var(--text-2)">${d.type||'—'}</td>
+                <td class="money">${fmt$(d.acquisition_price)}</td>
+                <td class="money">${fmt$(d.total_cost)}</td>
+                <td>${fmtDate(d.close_date)}</td>
+                <td>${fmtDate(d.target_exit_date)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>
+    </div>`;
+}
+
+function filterDealsTable() {
+  const q = document.getElementById('deal-search').value.toLowerCase();
+  document.querySelectorAll('#deals-tbody tr').forEach(tr => {
+    tr.style.display = tr.dataset.search.includes(q) ? '' : 'none';
+  });
+}
+
+// ─── DEAL DETAIL ──────────────────────────────────────────────
+async function renderDealDetail(dealId) {
+  const [{ data: deal }, { data: tasks }, { data: stack }, { data: milestones }, { data: payments }] = await Promise.all([
+    sb.from('deals').select('*').eq('id', dealId).single(),
+    sb.from('tasks').select('*').eq('deal_id', dealId).order('due_date'),
+    sb.from('capital_stack').select('*').eq('deal_id', dealId).order('id'),
+    sb.from('milestones').select('*').eq('deal_id', dealId).order('target_date'),
+    sb.from('payments').select('*').eq('deal_id', dealId).order('pay_date', { ascending: false })
+  ]);
+  if (!deal) { document.getElementById('main-content').innerHTML = '<div class="loading">Deal not found.</div>'; return; }
+
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div style="width:100%">
+        <div class="deal-back" onclick="navigateTo('deals')">← All Deals</div>
+        <div class="page-title">${deal.name}</div>
+        <div class="deal-meta">
+          ${phaseBadge(deal.phase)}
+          ${deal.address?`<span class="deal-address">📍 ${deal.address}</span>`:''}
+          ${deal.type?`<span class="deal-address">· ${deal.type}</span>`:''}
+        </div>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="tab-bar">
+        ${['overview','capital-stack','milestones','payments','links'].map(t=>`
+          <div class="tab ${currentDealTab===t?'active':''}" onclick="switchDealTab('${t}','${dealId}')">${t.replace('-',' ').replace(/\b\w/g,c=>c.toUpperCase())}</div>
+        `).join('')}
+      </div>
+      <div id="deal-tab-content">
+        ${renderDealTab(currentDealTab, deal, tasks||[], stack||[], milestones||[], payments||[])}
+      </div>
+    </div>`;
+}
+
+function switchDealTab(tab, dealId) {
+  currentDealTab = tab;
+  renderDealDetail(dealId);
+}
+
+function renderDealTab(tab, deal, tasks, stack, milestones, payments) {
+  if (tab==='overview') return renderDealOverview(deal, tasks);
+  if (tab==='capital-stack') return renderCapitalStack(deal, stack);
+  if (tab==='milestones') return renderMilestones(deal, milestones);
+  if (tab==='payments') return renderDealPayments(deal, payments);
+  if (tab==='links') return renderLinks(deal);
+  return '';
+}
+
+function renderDealOverview(deal, tasks) {
+  const open = tasks.filter(t => t.status !== 'Done');
+  const done = tasks.filter(t => t.status === 'Done');
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="section-header" style="margin-bottom:14px">
+            <div class="section-title">Deal Info</div>
+            <button class="btn btn-ghost btn-sm" onclick="openEditDeal(${deal.id})">Edit</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div><div class="ov-label">Acquisition</div><div class="ov-value money">${fmt$(deal.acquisition_price)}</div></div>
+            <div><div class="ov-label">Total Cost</div><div class="ov-value money">${fmt$(deal.total_cost)}</div></div>
+            <div><div class="ov-label">Close Date</div><div class="ov-value">${fmtDate(deal.close_date)}</div></div>
+            <div><div class="ov-label">Target Exit</div><div class="ov-value">${fmtDate(deal.target_exit_date)}</div></div>
+            <div><div class="ov-label">Type</div><div class="ov-value">${deal.type||'—'}</div></div>
+            <div><div class="ov-label">Phase</div><div class="ov-value">${deal.phase||'—'}</div></div>
+          </div>
+          ${deal.notes?`<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)"><div class="ov-label" style="margin-bottom:5px">Notes</div><div style="font-size:13px;color:var(--text-2);line-height:1.6">${deal.notes}</div></div>`:''}
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="section-header" style="margin-bottom:12px">
+            <div class="section-title">Tasks <span style="color:var(--text-3);font-weight:400;font-size:11px">${open.length} open · ${done.length} done</span></div>
+            <button class="btn btn-ghost btn-sm" onclick="openNewTask(${deal.id})">+ Add</button>
+          </div>
+          ${open.length===0?`<div style="color:var(--text-3);font-size:13px;padding:12px 0;text-align:center">All tasks complete ✓</div>`:''}
+          ${open.map(t=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:500;${isOverdue(t.due_date,t.status)?'color:var(--danger)':''};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div>
+                <div style="font-size:11px;color:var(--text-3)">
+                  ${userName(t.assigned_to)} · ${fmtDate(t.due_date)}
+                  ${t.created_by&&t.created_by!==t.assigned_to?`<span class="watermark"> · by <span>${userName(t.created_by)}</span></span>`:''}
+                </div>
+              </div>
+              <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
+                ${taskStatusBadge(t.status,t.due_date)}
+                ${t.status!=='Done'?`<button class="btn btn-mint btn-sm" onclick="markTaskDone(${t.id},'${deal.id}')">✓</button>`:''}
+              </div>
+            </div>`).join('')}
+          ${open.length>0&&done.length>0?`<div style="font-size:11px;color:var(--text-3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${done.length} completed tasks hidden</div>`:''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderCapitalStack(deal, stack) {
+  const total = stack.reduce((s,r) => s + Number(r.amount||0), 0);
+  const tierColors = { 'Senior Debt':'#1A1A1A','Mezzanine':'#5A5A5A','Preferred Equity':'#A8D5BA','LP Equity':'#5FA882','GP Equity':'#2D6B4A','Other':'#9CA3AF' };
+  return `
+    <div class="section-header"><div class="section-title">Capital Stack</div><button class="btn btn-ghost btn-sm" onclick="openNewCapital(${deal.id})">+ Add Tier</button></div>
+    ${stack.length>0?`
+    <div style="margin-bottom:20px">
+      <div class="stack-bar">
+        ${stack.map(r=>{const pct=total>0?(Number(r.amount)/total*100).toFixed(1):0;return`<div class="stack-segment" style="width:${pct}%;background:${tierColors[r.tier]||'#888'}" title="${r.tier}: ${fmt$(r.amount)}">${pct>9?r.tier.split(' ')[0]:''}</div>`}).join('')}
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:7px">
+        ${stack.map(r=>`<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text-2)"><div style="width:8px;height:8px;border-radius:2px;background:${tierColors[r.tier]||'#888'}"></div>${r.tier}: <span style="font-family:var(--mono);font-weight:500">${fmt$(r.amount)}</span></div>`).join('')}
+      </div>
+    </div>`:''}
+    <div class="table-wrap">
+      ${stack.length===0?'<div class="empty-state"><p>No capital stack entries yet.</p></div>':`
+      <table>
+        <thead><tr><th>Tier</th><th>Party</th><th>Amount</th><th>% of Stack</th><th>Rate</th><th>Notes</th><th></th></tr></thead>
+        <tbody>
+          ${stack.map(r=>`
+            <tr>
+              <td><span class="badge" style="background:${tierColors[r.tier]||'#888'}22;color:${tierColors[r.tier]||'#888'}">${r.tier}</span></td>
+              <td>${r.party||'—'}</td>
+              <td class="money" style="font-family:var(--mono)">${fmt$(r.amount)}</td>
+              <td style="font-family:var(--mono)">${total>0?((Number(r.amount)/total)*100).toFixed(1)+'%':'—'}</td>
+              <td>${r.rate?(r.rate*100).toFixed(2)+'%':'—'}</td>
+              <td style="color:var(--text-3);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.notes||'—'}</td>
+              <td><button class="btn btn-ghost btn-sm" onclick="deleteCapital(${r.id},'${deal.id}')">×</button></td>
+            </tr>`).join('')}
+          <tr style="background:var(--bg)">
+            <td colspan="2" style="font-weight:600">Total</td>
+            <td class="money" style="font-weight:600;font-family:var(--mono)">${fmt$(total)}</td>
+            <td style="font-family:var(--mono)">100%</td><td colspan="3"></td>
+          </tr>
+        </tbody>
+      </table>`}
+    </div>`;
+}
+
+function renderMilestones(deal, milestones) {
+  const done = milestones.filter(m=>m.completed).length;
+  return `
+    <div class="section-header">
+      <div class="section-title">Milestones <span style="color:var(--text-3);font-weight:400">${done}/${milestones.length} complete</span></div>
+      <button class="btn btn-ghost btn-sm" onclick="openNewMilestone(${deal.id})">+ Add</button>
+    </div>
+    ${milestones.length===0?'<div class="empty-state"><p>No milestones yet.</p></div>':`
+    <div class="card">
+      ${milestones.map(m=>`
+        <div class="milestone-item">
+          <div class="milestone-check ${m.completed?'done':''}" onclick="toggleMilestone(${m.id},${!m.completed},'${deal.id}')">${m.completed?'✓':''}</div>
+          <div style="flex:1">
+            <div class="milestone-title ${m.completed?'done':''}">${m.title}</div>
+            <div class="milestone-meta">
+              ${m.target_date?`Target: ${fmtDate(m.target_date)}`:'No date set'}
+              ${m.completed&&m.completed_date?` · Completed: ${fmtDate(m.completed_date)}`:''}
+              ${!m.completed&&m.target_date&&isOverdue(m.target_date,'')?` · <span style="color:var(--danger)">Overdue</span>`:''}
+            </div>
+            ${m.notes?`<div style="font-size:12px;color:var(--text-3);margin-top:2px">${m.notes}</div>`:''}
+            ${m.links&&m.links.length?`<div class="milestone-links">${m.links.map((l,i)=>`<a class="milestone-link" href="${l}" target="_blank">Link ${i+1} ↗</a>`).join('')}</div>`:''}
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="deleteMilestone(${m.id},'${deal.id}')">×</button>
+        </div>`).join('')}
+    </div>`}`;
+}
+
+function renderDealPayments(deal, payments) {
+  const totalIn = payments.filter(p=>p.direction==='Incoming').reduce((s,p)=>s+Number(p.amount||0),0);
+  const totalOut = payments.filter(p=>p.direction==='Outgoing').reduce((s,p)=>s+Number(p.amount||0),0);
+  return `
+    <div style="display:flex;gap:10px;margin-bottom:18px">
+      <div class="metric-card" style="flex:1"><div class="metric-label">Total In</div><div class="money-pos" style="font-size:20px;font-family:var(--mono);font-weight:600">${fmt$(totalIn)}</div></div>
+      <div class="metric-card" style="flex:1"><div class="metric-label">Total Out</div><div class="money-neg" style="font-size:20px;font-family:var(--mono);font-weight:600">${fmt$(totalOut)}</div></div>
+      <div class="metric-card" style="flex:1"><div class="metric-label">Net</div><div style="font-size:20px;font-family:var(--mono);font-weight:600;color:${totalIn-totalOut>=0?'var(--success)':'var(--danger)'}">${fmt$(totalIn-totalOut)}</div></div>
+    </div>
+    <div class="section-header"><div class="section-title">Payment Log</div><button class="btn btn-ghost btn-sm" onclick="openNewPayment(${deal.id})">+ Log Payment</button></div>
+    <div class="table-wrap">
+      ${payments.length===0?'<div class="empty-state"><p>No payments logged yet.</p></div>':`
+      <table>
+        <thead><tr><th>Date</th><th>Direction</th><th>Category</th><th>Party</th><th>Amount</th><th>Scheduled</th><th>Notes</th><th></th></tr></thead>
+        <tbody>
+          ${payments.map(p=>`
+            <tr>
+              <td style="font-family:var(--mono);font-size:12px">${fmtDate(p.pay_date)}</td>
+              <td><span class="badge ${p.direction==='Incoming'?'badge-in':'badge-out'}">${p.direction}</span></td>
+              <td style="color:var(--text-2)">${p.category||'—'}</td>
+              <td>${p.party||'—'}</td>
+              <td class="${p.direction==='Incoming'?'dir-in':'dir-out'}">${p.direction==='Incoming'?'+':'-'}${fmt$(p.amount)}</td>
+              <td>${p.scheduled?`<span class="badge ${p.paid?'badge-done':'badge-open'}">${p.paid?'Paid':'Pending'}</span>`:'<span style="color:var(--text-3)">—</span>'}</td>
+              <td style="color:var(--text-3);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis">${p.notes||'—'}</td>
+              <td><button class="btn btn-ghost btn-sm" onclick="deletePayment(${p.id},'${deal.id}')">×</button></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>`;
+}
+
+function renderLinks(deal) {
+  const links = deal.links || [];
+  return `
+    <div class="section-header"><div class="section-title">External Links</div><button class="btn btn-ghost btn-sm" onclick="openAddLink(${deal.id})">+ Add Link</button></div>
+    <div class="card">
+      ${links.length===0?'<div class="empty-state" style="padding:28px"><p>Link to Google Drive folders, contracts, permits, lender docs, etc.</p></div>':
+        links.map((l,i)=>`
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+            <span>🔗</span>
+            <div style="flex:1">
+              <div style="font-weight:500;font-size:13.5px">${l.label||'Link '+(i+1)}</div>
+              <a href="${l.url}" target="_blank" style="font-size:12px;color:var(--mint-text)">${l.url}</a>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="deleteLink(${deal.id},${i})">×</button>
+          </div>`).join('')}
+    </div>`;
+}
+
+// ─── TASKS PAGE ───────────────────────────────────────────────
+async function renderTasks() {
+  const { data: tasks } = await sb.from('tasks').select('*, deals(name)').order('due_date');
+  allTasks = tasks || [];
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-header">
+      <div><div class="page-title">Tasks</div><div class="page-sub">${allTasks.filter(t=>t.status!=='Done').length} open across all deals</div></div>
+      <div class="toolbar">
+        <div class="search-wrap"><span class="search-icon">⌕</span><input class="search-input" id="task-search" placeholder="Search tasks..." oninput="filterTasksTable()"></div>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="task-filters">
+        <div class="filter-btn ${taskFilter==='all'?'active':''}" onclick="setTaskFilter('all',event)">All</div>
+        <div class="filter-btn ${taskFilter==='mine'?'active':''}" onclick="setTaskFilter('mine',event)">My Tasks</div>
+        <div class="filter-btn ${taskFilter==='overdue'?'active':''}" onclick="setTaskFilter('overdue',event)">Overdue</div>
+        <div class="filter-btn ${taskFilter==='open'?'active':''}" onclick="setTaskFilter('open',event)">Open</div>
+        <div class="filter-btn ${taskFilter==='inprogress'?'active':''}" onclick="setTaskFilter('inprogress',event)">In Progress</div>
+        <div class="filter-btn ${taskFilter==='done'?'active':''}" onclick="setTaskFilter('done',event)">Done</div>
+        <span style="color:var(--border-strong);padding:0 4px">|</span>
+        ${allUsers.map(u=>`<div class="filter-btn ${taskFilter===u.auth_id?'active':''}" onclick="setTaskFilter('${u.auth_id}',event)">${u.name.split(' ')[0]}</div>`).join('')}
+      </div>
+      <div id="tasks-table-wrap">${renderTasksTable(allTasks)}</div>
+    </div>`;
+}
+
+function renderTasksTable(tasks) {
+  let f = tasks;
+  if (taskFilter==='mine') f = tasks.filter(t=>t.assigned_to===currentUser.id);
+  else if (taskFilter==='overdue') f = tasks.filter(t=>isOverdue(t.due_date,t.status));
+  else if (taskFilter==='open') f = tasks.filter(t=>t.status==='Open');
+  else if (taskFilter==='inprogress') f = tasks.filter(t=>t.status==='In Progress');
+  else if (taskFilter==='done') f = tasks.filter(t=>t.status==='Done');
+  else if (allUsers.find(u=>u.auth_id===taskFilter)) f = tasks.filter(t=>t.assigned_to===taskFilter);
+  if (f.length===0) return '<div class="empty-state"><div class="empty-state-icon">✓</div><p>No tasks match this filter.</p></div>';
+  return `<div class="table-wrap"><table>
+    <thead><tr><th>Task</th><th>Property</th><th>Assigned To</th><th>Due</th><th>Status</th><th>Created By</th><th>Actions</th></tr></thead>
+    <tbody id="tasks-tbody">
+      ${f.map(t=>`
+        <tr data-title="${(t.title||'').toLowerCase()}">
+          <td style="font-weight:500;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</td>
+          <td style="color:var(--text-2)">${t.deals?.name||'—'}</td>
+          <td>${userName(t.assigned_to)}</td>
+          <td style="font-family:var(--mono);font-size:12px;${isOverdue(t.due_date,t.status)?'color:var(--danger)':''}">${fmtDate(t.due_date)}</td>
+          <td>${taskStatusBadge(t.status,t.due_date)}</td>
+          <td class="watermark"><span>${userName(t.created_by)}</span></td>
+          <td><div style="display:flex;gap:5px">
+            ${t.status!=='Done'?`<button class="btn btn-mint btn-sm" onclick="markTaskDone(${t.id},null)">Done</button>`:''}
+            <button class="btn btn-ghost btn-sm" onclick="deleteTask(${t.id})">×</button>
+          </div></td>
+        </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+function setTaskFilter(f, e) {
+  taskFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  if (e && e.target) e.target.classList.add('active');
+  document.getElementById('tasks-table-wrap').innerHTML = renderTasksTable(allTasks);
+}
+
+function filterTasksTable() {
+  const q = document.getElementById('task-search').value.toLowerCase();
+  document.querySelectorAll('#tasks-tbody tr').forEach(tr=>{
+    tr.style.display = tr.dataset.title.includes(q)?'':'none';
+  });
+}
+
+// ─── SETTINGS ─────────────────────────────────────────────────
+async function renderSettings() {
+  document.getElementById('main-content').innerHTML = `
+    <div class="page-header"><div><div class="page-title">Settings</div><div class="page-sub">Team & configuration</div></div></div>
+    <div class="page-content">
+      <div class="card" style="max-width:540px;margin-bottom:18px">
+        <div class="section-title" style="margin-bottom:14px">Team Members</div>
+        <div id="users-list"><div class="loading" style="padding:20px"><div class="spinner"></div>Loading...</div></div>
+      </div>
+      <div class="card" style="max-width:540px">
+        <div class="section-title" style="margin-bottom:12px">Deal Phases</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          ${['Prospecting','Under Contract','Active','Construction','Lease-up','Stabilized','Exited','On Hold','Dead'].map(p=>phaseBadge(p)).join('')}
+        </div>
+      </div>
+    </div>`;
+  const { data: users } = await sb.from('users').select('*').order('name');
+  const el = document.getElementById('users-list');
+  if (!el) return;
+  el.innerHTML = (users||[]).map(u=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+      <div class="user-avatar" style="width:30px;height:30px;font-size:11px">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
+      <div style="flex:1"><div style="font-weight:500;font-size:13.5px">${u.name}</div><div style="font-size:12px;color:var(--text-3)">${u.email||''}</div></div>
+      <span class="badge ${u.role==='admin'?'badge-active':'badge-hold'}">${u.role||'member'}</span>
+    </div>`).join('')||'<div style="color:var(--text-3);font-size:13px">No users found — run the seed SQL.</div>';
+}
+
+// ─── MODAL: DEAL ──────────────────────────────────────────────
+function dealFormHTML(deal={}) {
+  const phases=['Prospecting','Under Contract','Active','Construction','Lease-up','Stabilized','Exited','On Hold','Dead'];
+  const types=['Multifamily','Mixed-Use','Commercial','Industrial','Land','Retail','Office','Other'];
+  return `
+    <button class="modal-close" onclick="closeModal('modal-deal')">×</button>
+    <div class="modal-title">${deal.id?'Edit Deal':'New Deal'}</div>
+    <div class="form-row"><label class="form-label">Deal Name *</label><input class="form-input" id="d-name" value="${deal.name||''}"></div>
+    <div class="form-row"><label class="form-label">Address</label><input class="form-input" id="d-address" value="${deal.address||''}"></div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Type</label><select class="form-select" id="d-type">${types.map(t=>`<option ${deal.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Phase</label><select class="form-select" id="d-phase">${phases.map(p=>`<option ${deal.phase===p?'selected':''}>${p}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Acquisition Price</label><input class="form-input" id="d-acq" type="number" value="${deal.acquisition_price||''}"></div>
+      <div class="form-row"><label class="form-label">Total Cost</label><input class="form-input" id="d-cost" type="number" value="${deal.total_cost||''}"></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Close Date</label><input class="form-input" id="d-close" type="date" value="${deal.close_date||''}"></div>
+      <div class="form-row"><label class="form-label">Target Exit</label><input class="form-input" id="d-exit" type="date" value="${deal.target_exit_date||''}"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="d-notes">${deal.notes||''}</textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-deal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveDeal(${deal.id||'null'})">${deal.id?'Save':'Create Deal'}</button>
+    </div>`;
+}
+
+function openNewDeal() { openModal('modal-deal', dealFormHTML()); }
+function openEditDeal(id) { openModal('modal-deal', dealFormHTML(allDeals.find(d=>d.id==id)||{})); }
+
+async function saveDeal(id) {
+  const data = {
+    name: document.getElementById('d-name').value.trim(),
+    address: document.getElementById('d-address').value.trim(),
+    type: document.getElementById('d-type').value,
+    phase: document.getElementById('d-phase').value,
+    acquisition_price: document.getElementById('d-acq').value||null,
+    total_cost: document.getElementById('d-cost').value||null,
+    close_date: document.getElementById('d-close').value||null,
+    target_exit_date: document.getElementById('d-exit').value||null,
+    notes: document.getElementById('d-notes').value.trim(),
+    created_by: currentUser.id
+  };
+  if (!data.name) return alert('Deal name is required.');
+  if (id) await sb.from('deals').update(data).eq('id',id);
+  else { const { data: nd } = await sb.from('deals').insert(data).select().single(); closeModal('modal-deal'); await navigateTo('deal-detail', nd.id); return; }
+  closeModal('modal-deal');
+  await renderDealDetail(id);
+}
+
+// ─── MODAL: TASK ─────────────────────────────────────────────
+function taskFormHTML(dealId) {
+  return `
+    <button class="modal-close" onclick="closeModal('modal-task')">×</button>
+    <div class="modal-title">New Task</div>
+    <div class="form-row"><label class="form-label">Task *</label><input class="form-input" id="t-title" placeholder="e.g. Submit permit application"></div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Assign To *</label>
+        <select class="form-select" id="t-assign">
+          ${allUsers.map(u=>`<option value="${u.auth_id}" ${u.auth_id===currentUser.id?'selected':''}>${u.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row"><label class="form-label">Due Date</label><input class="form-input" id="t-due" type="date"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Status</label>
+      <select class="form-select" id="t-status"><option>Open</option><option>In Progress</option><option>Done</option></select>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask(${dealId})">Create Task</button>
+    </div>`;
+}
+
+function openNewTask(dealId) { openModal('modal-task', taskFormHTML(dealId)); }
+
+async function saveTask(dealId) {
+  const data = {
+    deal_id: dealId,
+    title: document.getElementById('t-title').value.trim(),
+    assigned_to: document.getElementById('t-assign').value||null,
+    due_date: document.getElementById('t-due').value||null,
+    status: document.getElementById('t-status').value,
+    created_by: currentUser.id
+  };
+  if (!data.title) return alert('Title is required.');
+  await sb.from('tasks').insert(data);
+  closeModal('modal-task');
+  if (currentPage==='tasks') await renderTasks();
+  else await renderDealDetail(dealId);
+}
+
+async function markTaskDone(id, dealId) {
+  await sb.from('tasks').update({status:'Done'}).eq('id',id);
+  if (currentPage==='tasks') await renderTasks();
+  else if (dealId) await renderDealDetail(dealId);
+}
+
+async function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  await sb.from('tasks').delete().eq('id',id);
+  if (currentPage==='tasks') await renderTasks();
+  else await renderDealDetail(currentDealId);
+}
+
+// ─── MODAL: MILESTONE ────────────────────────────────────────
+function openNewMilestone(dealId) {
+  openModal('modal-milestone',`
+    <button class="modal-close" onclick="closeModal('modal-milestone')">×</button>
+    <div class="modal-title">New Milestone</div>
+    <div class="form-row"><label class="form-label">Title *</label><input class="form-input" id="m-title" placeholder="e.g. Close construction loan"></div>
+    <div class="form-row"><label class="form-label">Target Date</label><input class="form-input" id="m-date" type="date"></div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="m-notes"></textarea></div>
+    <div class="form-row"><label class="form-label">Links (one per line)</label><textarea class="form-textarea" id="m-links" placeholder="https://drive.google.com/..."></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-milestone')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveMilestone(${dealId})">Add Milestone</button>
+    </div>`);
+}
+
+async function saveMilestone(dealId) {
+  const links = document.getElementById('m-links').value.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+  const data = { deal_id:dealId, title:document.getElementById('m-title').value.trim(), target_date:document.getElementById('m-date').value||null, notes:document.getElementById('m-notes').value.trim(), links, completed:false };
+  if (!data.title) return alert('Title required.');
+  await sb.from('milestones').insert(data);
+  closeModal('modal-milestone');
+  await renderDealDetail(dealId);
+}
+
+async function toggleMilestone(id, completed, dealId) {
+  await sb.from('milestones').update({completed, completed_date:completed?today():null}).eq('id',id);
+  await renderDealDetail(dealId);
+}
+
+async function deleteMilestone(id, dealId) {
+  if (!confirm('Delete milestone?')) return;
+  await sb.from('milestones').delete().eq('id',id);
+  await renderDealDetail(dealId);
+}
+
+// ─── MODAL: CAPITAL ───────────────────────────────────────────
+function openNewCapital(dealId) {
+  const tiers = ['Senior Debt','Mezzanine','Preferred Equity','LP Equity','GP Equity','Other'];
+  openModal('modal-capital',`
+    <button class="modal-close" onclick="closeModal('modal-capital')">×</button>
+    <div class="modal-title">Add to Capital Stack</div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Tier *</label><select class="form-select" id="c-tier">${tiers.map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Party / Lender</label><input class="form-input" id="c-party" placeholder="e.g. First National Bank"></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Amount *</label><input class="form-input" id="c-amount" type="number"></div>
+      <div class="form-row"><label class="form-label">Rate (e.g. 0.08)</label><input class="form-input" id="c-rate" type="number" step="0.0001" placeholder="0.0800"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="c-notes" placeholder="Terms, maturity, covenants..."></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-capital')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCapital(${dealId})">Add to Stack</button>
+    </div>`);
+}
+
+async function saveCapital(dealId) {
+  const data = { deal_id:dealId, tier:document.getElementById('c-tier').value, party:document.getElementById('c-party').value.trim(), amount:document.getElementById('c-amount').value||null, rate:document.getElementById('c-rate').value||null, notes:document.getElementById('c-notes').value.trim() };
+  if (!data.amount) return alert('Amount required.');
+  await sb.from('capital_stack').insert(data);
+  closeModal('modal-capital');
+  await renderDealDetail(dealId);
+}
+
+async function deleteCapital(id, dealId) {
+  if (!confirm('Remove this entry?')) return;
+  await sb.from('capital_stack').delete().eq('id',id);
+  await renderDealDetail(dealId);
+}
+
+// ─── MODAL: PAYMENT ───────────────────────────────────────────
+function openNewPayment(dealId) {
+  const cats = ['Construction Draw','Debt Service','Equity Distribution','Acquisition','Fee','Tax','Insurance','Permit','Legal','Other'];
+  openModal('modal-payment',`
+    <button class="modal-close" onclick="closeModal('modal-payment')">×</button>
+    <div class="modal-title">Log Payment</div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Direction *</label><select class="form-select" id="p-dir"><option>Outgoing</option><option>Incoming</option></select></div>
+      <div class="form-row"><label class="form-label">Date *</label><input class="form-input" id="p-date" type="date" value="${today()}"></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Category</label><select class="form-select" id="p-cat">${cats.map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Amount *</label><input class="form-input" id="p-amount" type="number"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Party</label><input class="form-input" id="p-party" placeholder="e.g. General Contractor, Bank"></div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Type</label><select class="form-select" id="p-sched"><option value="false">Actual payment</option><option value="true">Scheduled / future</option></select></div>
+      <div class="form-row"><label class="form-label">Paid?</label><select class="form-select" id="p-paid"><option value="true">Yes — paid</option><option value="false">No — pending</option></select></div>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="p-notes"></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-payment')">Cancel</button>
+      <button class="btn btn-primary" onclick="savePayment(${dealId})">Log Payment</button>
+    </div>`);
+}
+
+async function savePayment(dealId) {
+  const data = { deal_id:dealId, direction:document.getElementById('p-dir').value, pay_date:document.getElementById('p-date').value||null, category:document.getElementById('p-cat').value, amount:document.getElementById('p-amount').value||null, party:document.getElementById('p-party').value.trim(), scheduled:document.getElementById('p-sched').value==='true', paid:document.getElementById('p-paid').value==='true', notes:document.getElementById('p-notes').value.trim(), created_by:currentUser.id };
+  if (!data.amount) return alert('Amount required.');
+  await sb.from('payments').insert(data);
+  closeModal('modal-payment');
+  await renderDealDetail(dealId);
+}
+
+async function deletePayment(id, dealId) {
+  if (!confirm('Delete payment?')) return;
+  await sb.from('payments').delete().eq('id',id);
+  await renderDealDetail(dealId);
+}
+
+// ─── LINKS ────────────────────────────────────────────────────
+function openAddLink(dealId) {
+  openModal('modal-link',`
+    <button class="modal-close" onclick="closeModal('modal-link')">×</button>
+    <div class="modal-title">Add Link</div>
+    <div class="form-row"><label class="form-label">Label</label><input class="form-input" id="l-label" placeholder="e.g. Google Drive, LOI, Permits"></div>
+    <div class="form-row"><label class="form-label">URL *</label><input class="form-input" id="l-url" placeholder="https://..."></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-link')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveLink(${dealId})">Add Link</button>
+    </div>`);
+}
+
+async function saveLink(dealId) {
+  const url = document.getElementById('l-url').value.trim();
+  if (!url) return alert('URL required.');
+  const { data: deal } = await sb.from('deals').select('links').eq('id',dealId).single();
+  const links = deal.links || [];
+  links.push({ label:document.getElementById('l-label').value.trim()||'Link', url });
+  await sb.from('deals').update({links}).eq('id',dealId);
+  closeModal('modal-link');
+  await renderDealDetail(dealId);
+}
+
+async function deleteLink(dealId, index) {
+  if (!confirm('Remove this link?')) return;
+  const { data: deal } = await sb.from('deals').select('links').eq('id',dealId).single();
+  const links = (deal.links||[]).filter((_,i)=>i!==index);
+  await sb.from('deals').update({links}).eq('id',dealId);
+  await renderDealDetail(dealId);
+}
+
+// ─── START ────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
