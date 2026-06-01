@@ -1,0 +1,2129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>b3 — Development Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --mint:#6EBF8B;--mint-light:#EAF5EF;--mint-mid:#B8DFC7;--mint-dark:#3D9E62;--mint-text:#1E6B40;
+  --bg:#F5F6F7;--surface:#FFFFFF;--surface-2:#FAFAFA;
+  --border:#E4E6EA;--border-strong:#C8CBD2;
+  --text:#0F1117;--text-2:#4B5060;--text-3:#9499A8;
+  --danger:#DC3545;--danger-bg:#FDF2F3;--danger-border:#F5C6CB;
+  --warning:#C47D0E;--warning-bg:#FEF9EC;--warning-border:#FDDFA0;
+  --success:#1A7F3C;--success-bg:#EDF7F1;--success-border:#A8DFB8;
+  --blue:#2563EB;--blue-bg:#EFF4FF;
+  --purple:#7C3AED;--purple-bg:#F5F0FF;
+  --sidebar-w:232px;
+  --font:'Inter',sans-serif;--mono:'DM Mono',monospace;
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);font-family:var(--font);color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+
+/* ── AUTH ─────────────────────────────────────────── */
+#auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#F0F4F8 0%,#E8F5EF 100%)}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:44px 40px;width:400px;box-shadow:var(--shadow-md)}
+.auth-logo-row{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.auth-logomark{width:38px;height:38px;background:var(--text);border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:600;letter-spacing:-.5px;position:relative;flex-shrink:0}
+.auth-logomark-dot{width:8px;height:8px;border-radius:50%;background:var(--mint);position:absolute;right:-2px;bottom:-2px;border:2px solid var(--surface)}
+.auth-wordmark{font-size:22px;font-weight:600;letter-spacing:-.5px;color:var(--text)}
+.auth-tagline{font-size:13px;color:var(--text-3);margin-bottom:32px}
+.auth-label{font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:5px;display:block;letter-spacing:.01em}
+.auth-input{width:100%;padding:10px 13px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;color:var(--text);background:var(--surface-2);margin-bottom:14px;outline:none;transition:border-color .15s,box-shadow .15s}
+.auth-input:focus{border-color:var(--mint);box-shadow:0 0 0 3px rgba(110,191,139,.15)}
+.auth-btn{width:100%;padding:11px;background:var(--text);color:#fff;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;font-weight:500;cursor:pointer;transition:opacity .15s;margin-top:6px;letter-spacing:.01em}
+.auth-btn:hover{opacity:.87}
+.auth-error{font-size:12px;color:var(--danger);margin-top:10px}
+
+/* ── APP SHELL ─────────────────────────────────────── */
+#app{display:none;height:100vh;width:100vw;overflow:hidden;position:fixed;top:0;left:0}
+.layout{display:flex;height:100%;width:100%}
+
+/* ── SIDEBAR ──────────────────────────────────────── */
+.sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;height:100%;overflow-y:auto}
+.sidebar-logo{padding:22px 18px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.logo-mark{width:30px;height:30px;background:var(--text);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;position:relative;flex-shrink:0}
+.logo-dot{width:7px;height:7px;border-radius:50%;background:var(--mint);position:absolute;right:-2px;bottom:-2px;border:2px solid var(--surface)}
+.logo-name{font-size:15px;font-weight:600;letter-spacing:-.3px;color:var(--text)}
+.logo-sub{font-size:10px;color:var(--text-3);letter-spacing:.04em;text-transform:uppercase;margin-top:1px}
+.nav-section{padding:16px 10px 4px}
+.nav-label{font-size:10px;font-weight:600;color:var(--text-3);letter-spacing:.08em;text-transform:uppercase;padding:0 10px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius-sm);cursor:pointer;color:var(--text-2);font-size:13px;font-weight:400;transition:background .12s,color .12s;user-select:none}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--mint-light);color:var(--mint-text);font-weight:500}
+.nav-icon{font-size:14px;width:17px;text-align:center;opacity:.65;flex-shrink:0}
+.nav-item.active .nav-icon{opacity:1}
+.nav-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.sidebar-footer{margin-top:auto;padding:14px 10px;border-top:1px solid var(--border)}
+.user-chip{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:var(--radius-sm);background:var(--bg)}
+.user-av{width:28px;height:28px;border-radius:50%;background:var(--mint-light);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--mint-text);flex-shrink:0}
+.user-name{font-size:13px;font-weight:500;color:var(--text)}
+.user-role{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em}
+.logout-btn{margin-left:auto;font-size:11px;color:var(--text-3);cursor:pointer;padding:4px 7px;border-radius:4px;transition:all .12s;border:1px solid transparent}
+.logout-btn:hover{color:var(--danger);border-color:var(--danger-border);background:var(--danger-bg)}
+
+/* ── MAIN ─────────────────────────────────────────── */
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.page-header{padding:28px 32px 0;display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.page-title{font-size:21px;font-weight:600;letter-spacing:-.4px;color:var(--text)}
+.page-sub{font-size:13px;color:var(--text-3);margin-top:3px}
+.page-content{padding:22px 32px 48px;flex:1}
+
+/* ── BUTTONS ─────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;letter-spacing:.01em}
+.btn-primary{background:var(--text);color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.btn-primary:hover{opacity:.86}
+.btn-ghost{background:transparent;color:var(--text-2);border:1px solid var(--border-strong)}
+.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-mint{background:var(--mint-light);color:var(--mint-text);border:1px solid var(--mint-mid)}
+.btn-mint:hover{background:var(--mint-mid);color:var(--mint-text)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+
+/* ── CARDS ─────────────────────────────────────────── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+
+/* ── METRIC CARDS ─────────────────────────────────── */
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px}
+.metric-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;cursor:pointer;transition:border-color .15s,box-shadow .15s;box-shadow:var(--shadow)}
+.metric-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md)}
+.metric-label{font-size:11px;font-weight:500;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px}
+.metric-value{font-size:26px;font-weight:600;letter-spacing:-.5px;font-family:var(--mono);line-height:1}
+.metric-sub{font-size:11px;color:var(--text-3);margin-top:5px}
+.metric-accent{border-left:3px solid var(--mint)}
+
+/* ── ALERTS ─────────────────────────────────────── */
+.alert-strip{display:flex;flex-direction:column;gap:6px;margin-bottom:22px}
+.alert{display:flex;align-items:flex-start;gap:10px;padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;line-height:1.5}
+.alert-danger{background:var(--danger-bg);color:#9B1C28;border:1px solid var(--danger-border)}
+.alert-warning{background:var(--warning-bg);color:#7A4E08;border:1px solid var(--warning-border)}
+.alert-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;margin-top:5px}
+
+/* ── TABLES ─────────────────────────────────────── */
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;padding:11px 16px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+td{padding:13px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr.row-link{cursor:pointer;transition:background .1s}
+tr.row-link:hover td{background:var(--bg)}
+
+/* ── BADGES ──────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:.01em;white-space:nowrap}
+.badge-active{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+.badge-construction{background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-border)}
+.badge-prospecting{background:var(--blue-bg);color:var(--blue);border:1px solid #BFCFFE}
+.badge-contract{background:var(--purple-bg);color:var(--purple);border:1px solid #DDD6FE}
+.badge-leaseup{background:var(--mint-light);color:var(--mint-text);border:1px solid var(--mint-mid)}
+.badge-exited{background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB}
+.badge-hold{background:#F9FAFB;color:#9CA3AF;border:1px solid var(--border)}
+.badge-open{background:var(--blue-bg);color:var(--blue);border:1px solid #BFCFFE}
+.badge-inprog{background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-border)}
+.badge-done{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+.badge-overdue{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)}
+.badge-in{background:var(--success-bg);color:var(--success);border:1px solid var(--success-border)}
+.badge-out{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)}
+
+/* ── TABS ────────────────────────────────────────── */
+.tab-bar{display:flex;border-bottom:1px solid var(--border);margin-bottom:24px;gap:0}
+.tab{padding:10px 18px;font-size:13px;font-weight:500;color:var(--text-3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--text);border-bottom-color:var(--mint-dark);font-weight:500}
+
+/* ── MODALS ──────────────────────────────────────── */
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(15,17,23,.45);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.modal-backdrop.open{display:flex}
+.modal{background:var(--surface);border-radius:var(--radius-lg);padding:28px 32px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;box-shadow:var(--shadow-md)}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:20px;letter-spacing:-.3px}
+.modal-close{position:absolute;top:20px;right:20px;width:28px;height:28px;border-radius:6px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--text-3);line-height:1;transition:all .12s}
+.modal-close:hover{color:var(--text);background:var(--border)}
+.form-row{margin-bottom:15px}
+.form-label{font-size:12px;font-weight:500;color:var(--text-2);margin-bottom:5px;display:block}
+.form-input,.form-select,.form-textarea{width:100%;padding:9px 12px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;color:var(--text);background:var(--surface-2);outline:none;transition:border-color .15s,box-shadow .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--mint);box-shadow:0 0 0 3px rgba(110,191,139,.12)}
+.form-textarea{resize:vertical;min-height:76px;line-height:1.5}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.form-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:18px;border-top:1px solid var(--border)}
+
+/* ── DEAL DETAIL ─────────────────────────────────── */
+.deal-back{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3);cursor:pointer;margin-bottom:10px;transition:color .12s;font-weight:500;letter-spacing:.01em;text-transform:uppercase}
+.deal-back:hover{color:var(--text)}
+.deal-meta-row{display:flex;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap}
+.deal-address{font-size:13px;color:var(--text-3)}
+.deal-stat{font-size:12px;color:var(--text-3);background:var(--bg);border:1px solid var(--border);padding:3px 10px;border-radius:20px}
+
+/* ── STAT GRID ──────────────────────────────────── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--border);box-shadow:var(--shadow)}
+.stat-cell{background:var(--surface);padding:16px 18px}
+.stat-label{font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.stat-value{font-size:15px;font-weight:600;color:var(--text)}
+.stat-value.money{font-family:var(--mono);font-size:14px}
+
+/* ── SOURCES & USES ─────────────────────────────── */
+.su-row{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.su-row:last-child{border-bottom:none}
+.su-row.total-row{background:var(--surface-2);margin:0 -22px;padding:10px 22px;font-weight:600}
+.su-label{flex:1;font-size:13px;color:var(--text-2)}
+.su-amount{font-family:var(--mono);font-size:13px;color:var(--text);min-width:110px;text-align:right}
+.su-pct{font-family:var(--mono);font-size:11px;color:var(--text-3);min-width:54px;text-align:right}
+.su-bar-wrap{width:90px;height:6px;background:var(--bg);border-radius:3px;margin:0 12px;overflow:hidden}
+.su-bar{height:100%;border-radius:3px;background:var(--mint)}
+.su-section-head{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-3);padding:14px 0 6px;border-bottom:1px solid var(--border);margin-bottom:2px}
+.su-source-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:14px 0 8px}
+.su-source-seg{height:100%;transition:opacity .15s}
+.su-source-seg:hover{opacity:.8}
+
+/* ── CONTACTS ───────────────────────────────────── */
+.contact-card{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
+.contact-card:last-child{border-bottom:none}
+.contact-av{width:36px;height:36px;border-radius:50%;background:var(--mint-light);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--mint-text);flex-shrink:0}
+.contact-name{font-size:14px;font-weight:500;color:var(--text)}
+.contact-role{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+.contact-detail{font-size:12px;color:var(--text-2);margin-top:4px}
+
+/* ── CAPITAL STACK ──────────────────────────────── */
+.stack-bar{border-radius:6px;overflow:hidden;height:28px;display:flex;margin:14px 0}
+.stack-seg{height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:#fff;cursor:default;min-width:2px;transition:opacity .15s}
+.stack-seg:hover{opacity:.82}
+
+/* ── MILESTONES ─────────────────────────────────── */
+.milestone-item{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.milestone-item:last-child{border-bottom:none}
+.m-check{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--border-strong);flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;margin-top:2px;transition:all .15s;font-size:10px;color:#fff}
+.m-check.done{background:var(--mint-dark);border-color:var(--mint-dark)}
+.m-title{font-size:13.5px;font-weight:500}
+.m-title.done{text-decoration:line-through;color:var(--text-3)}
+.m-meta{font-size:12px;color:var(--text-3);margin-top:2px}
+.m-link{font-size:11px;color:var(--mint-text);background:var(--mint-light);padding:2px 8px;border-radius:4px;text-decoration:none;border:1px solid var(--mint-mid)}
+
+/* ── TASKS ──────────────────────────────────────── */
+.filter-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+.filter-btn{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border-strong);background:var(--surface);color:var(--text-2);cursor:pointer;transition:all .15s}
+.filter-btn.active{background:var(--mint-light);border-color:var(--mint-mid);color:var(--mint-text)}
+.filter-btn:hover:not(.active){background:var(--bg)}
+.filter-divider{width:1px;background:var(--border);margin:0 2px;align-self:stretch}
+
+/* ── MISC ───────────────────────────────────────── */
+.loading{display:flex;align-items:center;justify-content:center;padding:72px;color:var(--text-3);font-size:13px}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--mint-dark);border-radius:50%;animation:spin .7s linear infinite;margin-right:10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.money{font-family:var(--mono)}
+.pos{color:var(--success)}
+.neg{color:var(--danger)}
+.empty{text-align:center;padding:52px 20px;color:var(--text-3)}
+.empty-icon{font-size:26px;margin-bottom:10px;opacity:.3}
+.empty p{font-size:13px}
+.section-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.section-label{font-size:11px;font-weight:600;color:var(--text);text-transform:uppercase;letter-spacing:.06em}
+.watermark{font-size:11px;color:var(--text-3)}
+.watermark b{color:var(--text-2);font-weight:500}
+.search-wrap{position:relative}
+.search-input{padding:8px 12px 8px 34px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-family:var(--font);font-size:13px;color:var(--text);background:var(--surface);outline:none;width:230px;transition:border-color .15s,box-shadow .15s}
+.search-input:focus{border-color:var(--mint);box-shadow:0 0 0 3px rgba(110,191,139,.12)}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:14px}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.phase-pills{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:24px}
+.phase-pill{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;gap:7px;cursor:pointer;transition:all .12s;box-shadow:var(--shadow)}
+.phase-pill:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md)}
+.ov-label{font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.ov-value{font-size:14px;font-weight:500;color:var(--text)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:4px}
+.divider{height:1px;background:var(--border);margin:16px 0}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo-row">
+      <div class="auth-logomark">b3<div class="auth-logomark-dot"></div></div>
+      <div class="auth-wordmark">b3</div>
+    </div>
+    <div class="auth-tagline">Development Operations Dashboard</div>
+    <label class="auth-label">Email address</label>
+    <input class="auth-input" id="auth-email" type="email" placeholder="you@b3dev.com" autocomplete="email">
+    <label class="auth-label">Password</label>
+    <input class="auth-input" id="auth-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    <button class="auth-btn" id="auth-submit">Sign in →</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-mark">b3<div class="logo-dot"></div></div>
+        <div><div class="logo-name">b3</div><div class="logo-sub">Development</div></div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <div class="nav-item active" data-page="home"><span class="nav-icon">⌂</span>Home</div>
+        <div class="nav-item" data-page="deals"><span class="nav-icon">◫</span>Deals</div>
+        <div class="nav-item" data-page="tasks"><span class="nav-icon">✓</span>Tasks<span class="nav-badge" id="tasks-badge" style="display:none"></span></div>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Account</div>
+        <div class="nav-item" data-page="settings"><span class="nav-icon">⚙</span>Settings</div>
+      </div>
+      <div class="sidebar-footer">
+        <div class="user-chip">
+          <div class="user-av" id="user-av">?</div>
+          <div><div class="user-name" id="user-name-display">—</div><div class="user-role" id="user-role-display">Member</div></div>
+          <div class="logout-btn" id="logout-btn" title="Sign out">↩</div>
+        </div>
+      </div>
+    </div>
+    <div class="main" id="main-content">
+      <div class="loading"><div class="spinner"></div>Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-backdrop" id="modal-deal"><div class="modal" id="modal-deal-inner"></div></div>
+<div class="modal-backdrop" id="modal-task"><div class="modal" id="modal-task-inner"></div></div>
+<div class="modal-backdrop" id="modal-milestone"><div class="modal" id="modal-milestone-inner"></div></div>
+<div class="modal-backdrop" id="modal-capital"><div class="modal" id="modal-capital-inner"></div></div>
+<div class="modal-backdrop" id="modal-payment"><div class="modal" id="modal-payment-inner"></div></div>
+<div class="modal-backdrop" id="modal-link"><div class="modal" id="modal-link-inner"></div></div>
+<div class="modal-backdrop" id="modal-contact"><div class="modal" id="modal-contact-inner"></div></div>
+<div class="modal-backdrop" id="modal-su"><div class="modal" id="modal-su-inner"></div></div>
+
+<script>
+const SUPABASE_URL = 'https://zlwvjrnzypqxfrcbpxfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpsd3Zqcm56eXBxeGZyY2JweGZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzNjk0NDEsImV4cCI6MjA5NDk0NTQ0MX0._zAsOL2_RxiQzAQ6F-cRsCLMvg0ETx3lSJRDFDK0cPM';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: { persistSession: true, storageKey: 'b3-auth', storage: window.localStorage }
+});
+
+// ── STATE ─────────────────────────────────────────
+let currentUser=null,currentUserProfile=null,currentPage='home',currentDealId=null,currentDealTab='overview';
+let allDeals=[],allTasks=[],allUsers=[],taskFilter='all';
+
+// ── CACHE ────────────────────────────────────────
+// Simple TTL cache — avoids refetching unchanged data on every nav
+const CACHE_TTL = 30000; // 30 seconds
+const _cache = {};
+function cacheSet(key, data){ _cache[key] = { data, ts: Date.now() }; }
+function cacheGet(key){ const c=_cache[key]; return (c&&Date.now()-c.ts<CACHE_TTL)?c.data:null; }
+function cacheInvalidate(...keys){ keys.forEach(k=>{ Object.keys(_cache).filter(ck=>ck.startsWith(k)).forEach(ck=>delete _cache[ck]); }); }
+
+// Cached fetch helpers
+async function fetchDeals(){ const c=cacheGet('deals'); if(c)return c; const {data}=await sb.from('deals').select('*').order('name'); cacheSet('deals',data||[]); return data||[]; }
+async function fetchTasks(){ const c=cacheGet('tasks'); if(c)return c; const {data}=await sb.from('tasks').select('*'); cacheSet('tasks',data||[]); return data||[]; }
+async function fetchDealDetail(dealId){
+  const key=`deal-${dealId}`;
+  const c=cacheGet(key); if(c)return c;
+  const [d,t,s,m,p,co,su]=await Promise.all([
+    sb.from('deals').select('*').eq('id',dealId).single(),
+    sb.from('tasks').select('*').eq('deal_id',dealId).order('due_date'),
+    sb.from('capital_stack').select('*').eq('deal_id',dealId).order('id'),
+    sb.from('milestones').select('*').eq('deal_id',dealId).order('target_date'),
+    sb.from('payments').select('*').eq('deal_id',dealId).order('pay_date',{ascending:false}),
+    sb.from('contacts').select('*').eq('deal_id',dealId).order('role'),
+    sb.from('sources_uses').select('*').eq('deal_id',dealId).order('section').order('sort_order')
+  ]);
+  const result={deal:d.data,tasks:t.data||[],stack:s.data||[],milestones:m.data||[],payments:p.data||[],contacts:co.data||[],su:su.data||[]};
+  cacheSet(key,result); return result;
+}
+
+// ── INIT ──────────────────────────────────────────
+async function init(){
+  const {data:{session}}=await sb.auth.getSession();
+  if(session){currentUser=session.user;await loadApp();}else showAuth();
+  sb.auth.onAuthStateChange(async(e,s)=>{
+    if(e==='SIGNED_IN'){currentUser=s.user;await loadApp();}
+    else if(e==='SIGNED_OUT'){currentUser=null;showAuth();}
+  });
+}
+function showAuth(){document.getElementById('auth-screen').style.display='flex';document.getElementById('app').style.display='none';}
+async function loadApp(){
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  await loadUsers();setupNav();setUserDisplay();await navigateTo('home');
+}
+
+// ── AUTH ─────────────────────────────────────────
+document.getElementById('auth-submit').addEventListener('click',async()=>{
+  const email=document.getElementById('auth-email').value.trim();
+  const pass=document.getElementById('auth-pass').value;
+  const err=document.getElementById('auth-error');err.textContent='';
+  const {error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error)err.textContent=error.message;
+});
+document.getElementById('auth-pass').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('auth-submit').click();});
+document.getElementById('logout-btn').addEventListener('click',()=>sb.auth.signOut());
+
+// ── USERS ─────────────────────────────────────────
+async function loadUsers(){
+  const {data}=await sb.from('users').select('*').order('name');
+  allUsers=data||[];
+  const me=allUsers.find(u=>u.auth_id===currentUser.id);
+  currentUserProfile=me||{name:currentUser.email.split('@')[0],role:'member'};
+}
+function setUserDisplay(){
+  const name=currentUserProfile?.name||currentUser.email.split('@')[0];
+  const ini=name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-av').textContent=ini;
+  document.getElementById('user-name-display').textContent=name;
+  document.getElementById('user-role-display').textContent=currentUserProfile?.role||'member';
+}
+function userName(id){if(!id)return'—';const u=allUsers.find(u=>u.auth_id===id);return u?u.name:'?';}
+
+// ── NAV ───────────────────────────────────────────
+function setupNav(){
+  document.querySelectorAll('.nav-item[data-page]').forEach(el=>{
+    el.addEventListener('click',()=>navigateTo(el.dataset.page));
+  });
+}
+async function navigateTo(page,dealId){
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const navEl=document.querySelector(`.nav-item[data-page="${page}"]`);
+  if(navEl)navEl.classList.add('active');
+  currentPage=page;currentDealId=dealId||null;
+  const main=document.getElementById('main-content');
+  main.innerHTML='<div class="loading"><div class="spinner"></div>Loading...</div>';
+  try {
+    if(page==='home')await renderHome();
+    else if(page==='deals')await renderDeals();
+    else if(page==='deal-detail')await renderDealDetail(currentDealId);
+    else if(page==='tasks')await renderTasks();
+    else if(page==='settings')await renderSettings();
+  } catch(err) {
+    console.error('Navigation error:',err);
+    main.innerHTML=`<div class="loading" style="flex-direction:column;gap:12px">
+      <div style="color:var(--danger);font-size:13px">Something went wrong loading this page.</div>
+      <button class="btn btn-ghost btn-sm" onclick="navigateTo('${page}'${dealId?`,'${dealId}'`:''})">Try again</button>
+    </div>`;
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────
+function fmt$(n){if(n==null||n==='')return'—';return'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0});}
+function fmtDate(d){if(!d)return'—';return new Date(d+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
+function today(){return new Date().toISOString().split('T')[0];}
+function isOverdue(date,status){return date&&date<today()&&status!=='Done';}
+function isDueSoon(date,status){if(!date||status==='Done')return false;const diff=(new Date(date+'T12:00:00')-new Date())/86400000;return diff>=0&&diff<=7;}
+function greeting(){const h=new Date().getHours();return h<12?'morning':h<17?'afternoon':'evening';}
+function phaseBadge(phase){
+  const m={'Prospecting':'badge-prospecting','Under Contract':'badge-contract','Active':'badge-active','Construction':'badge-construction','Lease-up':'badge-leaseup','Stabilized':'badge-leaseup','Exited':'badge-exited','On Hold':'badge-hold','Dead':'badge-hold'};
+  return`<span class="badge ${m[phase]||'badge-hold'}">${phase||'—'}</span>`;
+}
+function taskBadge(status,due){
+  if(status==='Done')return`<span class="badge badge-done">Done</span>`;
+  if(isOverdue(due,status))return`<span class="badge badge-overdue">Overdue</span>`;
+  if(status==='In Progress')return`<span class="badge badge-inprog">In Progress</span>`;
+  return`<span class="badge badge-open">Open</span>`;
+}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function openModal(id,html){
+  document.getElementById(id+'-inner').innerHTML=html;
+  document.getElementById(id).classList.add('open');
+  document.getElementById(id).onclick=e=>{if(e.target===document.getElementById(id))closeModal(id);};
+}
+function updateTasksBadge(n){const b=document.getElementById('tasks-badge');if(n>0){b.textContent=n;b.style.display='';}else b.style.display='none';}
+
+// ── HOME ──────────────────────────────────────────
+async function renderHome(){
+  const [deals,tasks]=await Promise.all([fetchDeals(),fetchTasks()]);
+  allDeals=deals;allTasks=tasks;
+  const open=allTasks.filter(t=>t.status!=='Done');
+  const active=allDeals.filter(d=>!['Exited','Dead'].includes(d.phase));
+  const totalCap=active.reduce((s,d)=>s+Number(d.total_cost||0),0);
+  const overdue=open.filter(t=>isOverdue(t.due_date,t.status));
+  const soon=open.filter(t=>isDueSoon(t.due_date,t.status));
+  const mine=open.filter(t=>t.assigned_to===currentUser.id);
+  updateTasksBadge(overdue.length);
+  const phases={};allDeals.forEach(d=>{phases[d.phase]=(phases[d.phase]||0)+1;});
+  const phaseColors={'Prospecting':'#BFCFFE','Under Contract':'#DDD6FE','Active':'#A8DFB8','Construction':'#FDDFA0','Lease-up':'#B8DFC7','Stabilized':'#A7F3D0','Exited':'#E5E7EB','On Hold':'#F3F4F6','Dead':'#F3F4F6'};
+  const phaseOrder=['Prospecting','Under Contract','Active','Construction','Lease-up','Stabilized','Exited','On Hold','Dead'];
+  const alerts=[];
+  overdue.slice(0,4).forEach(t=>{const d=allDeals.find(x=>x.id===t.deal_id);alerts.push(`<div class="alert alert-danger"><div class="alert-dot"></div><div><strong>${t.title}</strong> — ${userName(t.assigned_to)}&nbsp;·&nbsp;${d?d.name:''}&nbsp;·&nbsp;due ${fmtDate(t.due_date)}</div></div>`);});
+  soon.slice(0,2).forEach(t=>{const d=allDeals.find(x=>x.id===t.deal_id);alerts.push(`<div class="alert alert-warning"><div class="alert-dot"></div><div>Due soon: <strong>${t.title}</strong> — ${userName(t.assigned_to)}&nbsp;·&nbsp;${d?d.name:''}&nbsp;·&nbsp;${fmtDate(t.due_date)}</div></div>`);});
+  document.getElementById('main-content').innerHTML=`
+    <div class="page-header">
+      <div><div class="page-title">Good ${greeting()}, ${(currentUserProfile?.name||'there').split(' ')[0]}</div><div class="page-sub">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div></div>
+      <div class="toolbar"><button class="btn btn-ghost btn-sm" onclick="openNewDeal()">+ New Deal</button></div>
+    </div>
+    <div class="page-content">
+      ${alerts.length?`<div class="alert-strip">${alerts.join('')}</div>`:''}
+      <div class="metric-grid">
+        <div class="metric-card metric-accent" onclick="navigateTo('deals')"><div class="metric-label">Active Deals</div><div class="metric-value">${active.length}</div><div class="metric-sub">${allDeals.length} total in portfolio</div></div>
+        <div class="metric-card metric-accent"><div class="metric-label">Total Capital</div><div class="metric-value" style="font-size:${totalCap>9999999?'16px':'22px'}">${totalCap>0?fmt$(totalCap):'—'}</div><div class="metric-sub">across active deals</div></div>
+        <div class="metric-card" onclick="navigateTo('tasks')"><div class="metric-label">Open Tasks</div><div class="metric-value" style="${overdue.length?'color:var(--danger)':''}">${open.length}</div><div class="metric-sub">${overdue.length} overdue</div></div>
+        <div class="metric-card" onclick="navigateTo('tasks')"><div class="metric-label">My Tasks</div><div class="metric-value">${mine.length}</div><div class="metric-sub">${soon.filter(t=>t.assigned_to===currentUser.id).length} due this week</div></div>
+      </div>
+      <div class="section-hd" style="margin-bottom:10px"><div class="section-label">Portfolio by Phase</div><button class="btn btn-ghost btn-sm" onclick="navigateTo('deals')">View all →</button></div>
+      <div class="phase-pills">
+        ${phaseOrder.filter(p=>phases[p]).map(p=>`<div class="phase-pill" onclick="navigateTo('deals')"><div style="width:8px;height:8px;border-radius:50%;background:${phaseColors[p]};border:1px solid rgba(0,0,0,.1)"></div><span style="color:var(--text-2)">${p}</span><span style="font-weight:700;font-family:var(--mono);font-size:13px">${phases[p]}</span></div>`).join('')}
+        ${Object.keys(phases).length===0?'<span style="color:var(--text-3);font-size:13px">No deals yet — run the seed SQL to import your properties</span>':''}
+      </div>
+      <div class="section-hd" style="margin-bottom:10px"><div class="section-label">Portfolio Budget Health</div><button class="btn btn-ghost btn-sm" onclick="navigateTo('deals')">View all →</button></div>
+      <div id="budget-health-strip" style="margin-bottom:24px">
+        <div style="font-size:12px;color:var(--text-3)">Loading budget data...</div>
+      </div>
+      <div class="section-hd"><div class="section-label">All Deals</div></div>
+      <div class="table-wrap">
+        ${allDeals.length===0?'<div class="empty"><div class="empty-icon">◫</div><p>No deals yet.</p></div>':`
+        <table>
+          <thead><tr><th>Property</th><th>Phase</th><th>Units</th><th>Total Cost</th><th>Open Tasks</th></tr></thead>
+          <tbody>
+            ${allDeals.map(d=>{
+              const dt=allTasks.filter(t=>t.deal_id===d.id&&t.status!=='Done');
+              const od=dt.filter(t=>isOverdue(t.due_date,t.status));
+              return`<tr class="row-link" onclick="navigateTo('deal-detail','${d.id}')">
+                <td><div style="font-weight:500">${d.name}</div>${d.address?`<div style="font-size:12px;color:var(--text-3);margin-top:1px">${d.address}</div>`:''}</td>
+                <td>${phaseBadge(d.phase)}</td>
+                <td style="color:var(--text-2)">${d.num_units||'—'}</td>
+                <td class="money">${fmt$(d.total_cost)}</td>
+                <td>${dt.length>0?`<span style="color:${od.length?'var(--danger)':'var(--text)'};font-weight:${od.length?600:400}">${dt.length}${od.length?` <span style="font-size:11px">(${od.length} overdue)</span>`:''}</span>`:'<span style="color:var(--text-3)">—</span>'}</td>
+              </tr>`;}).join('')}
+          </tbody>
+        </table>`}
+      </div>
+    </div>`;
+  loadBudgetHealthStrip();
+}
+
+// ── BUDGET HEALTH STRIP ──────────────────────────
+async function loadBudgetHealthStrip(){
+  const el=document.getElementById('budget-health-strip');
+  if(!el)return;
+  try{
+    const [{data:lines},{data:pmts}]=await Promise.all([
+      sb.from('sources_uses').select('id,deal_id,section,amount,category').eq('section','use'),
+      sb.from('payments').select('deal_id,amount,direction,su_id').eq('direction','Outgoing')
+    ]);
+    if(!lines||!lines.length){el.innerHTML='<div style="font-size:12px;color:var(--text-3)">No budget lines added yet — add lines to deals to see progress here.</div>';return;}
+    const dealBudgets={};
+    lines.forEach(l=>{
+      if(!dealBudgets[l.deal_id])dealBudgets[l.deal_id]={budget:0,spent:0};
+      dealBudgets[l.deal_id].budget+=Number(l.amount||0);
+    });
+    const suToDeal={};lines.forEach(l=>suToDeal[String(l.id)]=l.deal_id);
+    (pmts||[]).filter(p=>p.su_id!=null).forEach(p=>{
+      const did=suToDeal[String(p.su_id)];
+      if(did&&dealBudgets[did])dealBudgets[did].spent+=Number(p.amount||0);
+    });
+    const totalBudget=Object.values(dealBudgets).reduce((s,d)=>s+d.budget,0);
+    const totalSpent=Object.values(dealBudgets).reduce((s,d)=>s+d.spent,0);
+    const pct=totalBudget>0?Math.min((totalSpent/totalBudget)*100,100):0;
+    const dealCards=allDeals.filter(d=>dealBudgets[d.id]).map(d=>{
+      const b=dealBudgets[d.id];
+      const dp=b.budget>0?Math.min((b.spent/b.budget)*100,100):0;
+      const over=b.spent>b.budget&&b.budget>0;
+      return'<div class="card" style="padding:12px 16px;cursor:pointer;min-width:160px;flex:1" onclick="currentDealTab=\'budget\';navigateTo(\'deal-detail\',\''+d.id+'\')"><div style="font-size:12px;font-weight:500;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+d.name+'</div><div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--border);margin-bottom:5px"><div style="height:100%;width:'+(dp<1&&b.spent>0?1:dp)+'%;background:'+(over?'var(--danger)':dp>80?'var(--warning)':'var(--mint)')+';border-radius:3px"></div></div><div style="display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--text-3)">'+fmt$(b.spent)+' spent</span><span style="color:'+(over?'var(--danger)':'var(--text-3)')+';font-weight:'+(over?600:400)+'">'+dp.toFixed(0)+'%'+(over?' ⚠':'')+'</span></div></div>';
+    }).join('');
+    el.innerHTML='<div class="card" style="padding:14px 18px;margin-bottom:12px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:var(--text-2)">Portfolio Total: <span style="font-family:var(--mono)">'+fmt$(totalSpent)+'</span> spent of <span style="font-family:var(--mono)">'+fmt$(totalBudget)+'</span> budgeted</div><div style="font-size:12px;color:var(--text-3);font-family:var(--mono)">'+pct.toFixed(1)+'%</div></div><div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--border)"><div style="height:100%;width:'+(pct<1&&totalSpent>0?1:pct)+'%;background:'+(pct>90?'var(--danger)':pct>70?'var(--warning)':'var(--mint)')+';border-radius:4px;transition:width .3s"></div></div></div><div style="display:flex;gap:10px;flex-wrap:wrap">'+dealCards+'</div>';
+  }catch(e){console.error(e);el.innerHTML='<div style="font-size:12px;color:var(--text-3)">Could not load budget data.</div>';}
+}
+
+// ── DEALS LIST ────────────────────────────────────
+async function renderDeals(){
+  allDeals=await fetchDeals();
+  document.getElementById('main-content').innerHTML=`
+    <div class="page-header">
+      <div><div class="page-title">Deals</div><div class="page-sub">${allDeals.length} properties in portfolio</div></div>
+      <div class="toolbar"><div class="search-wrap"><span class="search-icon">⌕</span><input class="search-input" id="deal-search" placeholder="Search properties..." oninput="filterDeals()"></div><button class="btn btn-primary" onclick="openNewDeal()">+ New Deal</button></div>
+    </div>
+    <div class="page-content">
+      <div class="table-wrap">
+        ${allDeals.length===0?'<div class="empty"><p>No deals yet.</p></div>':`
+        <table>
+          <thead><tr><th>Property</th><th>Phase</th><th>Type</th><th>Units</th><th>Acquisition</th><th>Total Cost</th><th>Site Improvements</th><th>Close Date</th></tr></thead>
+          <tbody id="deals-tbody">
+            ${allDeals.map(d=>`<tr class="row-link" data-s="${(d.name||'').toLowerCase()} ${(d.address||'').toLowerCase()}" onclick="navigateTo('deal-detail','${d.id}')">
+              <td><div style="font-weight:500">${d.name}</div>${d.address?`<div style="font-size:12px;color:var(--text-3);margin-top:1px">${d.address}</div>`:''}</td>
+              <td>${phaseBadge(d.phase)}</td>
+              <td style="color:var(--text-2)">${d.type||'—'}</td>
+              <td style="font-family:var(--mono)">${d.num_units||'—'}</td>
+              <td class="money">${fmt$(d.acquisition_price)}</td>
+              <td class="money">${fmt$(d.total_cost)}</td>
+              <td class="money">${fmt$(d.site_improvements)}</td>
+              <td>${fmtDate(d.close_date)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`}
+      </div>
+    </div>`;
+}
+function filterDeals(){
+  const q=document.getElementById('deal-search').value.toLowerCase();
+  document.querySelectorAll('#deals-tbody tr').forEach(tr=>tr.style.display=tr.dataset.s.includes(q)?'':'none');
+}
+
+// ── DEAL DETAIL ───────────────────────────────────
+async function renderDealDetail(dealId){
+  const {deal,tasks,stack,milestones,payments,contacts,su}=await fetchDealDetail(dealId);
+  if(!deal){document.getElementById('main-content').innerHTML='<div class="loading">Deal not found.</div>';return;}
+  const tabs=['overview','budget','capital-stack','contacts','milestones','payments','links','images'];
+  document.getElementById('main-content').innerHTML=`
+    <div class="page-header">
+      <div style="width:100%">
+        <div class="deal-back" onclick="navigateTo('deals')">← All Deals</div>
+        <div class="page-title">${deal.name}</div>
+        <div class="deal-meta-row">
+          ${phaseBadge(deal.phase)}
+          ${deal.address?`<span class="deal-address">📍 ${deal.address}</span>`:''}
+          ${deal.type?`<span class="deal-stat">${deal.type}</span>`:''}
+          ${deal.num_units?`<span class="deal-stat">${deal.num_units} units</span>`:''}
+          ${deal.site_improvements?`<span class="deal-stat">Site Improvements: ${fmt$(deal.site_improvements)}</span>`:''}
+        </div>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="tab-bar">
+        ${tabs.map(t=>`<div class="tab ${currentDealTab===t?'active':''}" onclick="switchDealTab('${t}','${dealId}')">${t.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</div>`).join('')}
+      </div>
+      <div id="deal-tab-content">
+        ${renderDealTab(currentDealTab,deal,tasks||[],stack||[],milestones||[],payments||[],contacts||[],su||[])}
+      </div>
+    </div>`;
+}
+function switchDealTab(tab,dealId){currentDealTab=tab;renderDealDetail(dealId).catch(err=>{console.error(err);});}
+function renderDealTab(tab,deal,tasks,stack,milestones,payments,contacts,su){
+  if(tab==='overview')return renderOverview(deal,tasks,payments,stack);
+  if(tab==='budget')return renderSourcesUses(deal,su,stack,payments);
+  if(tab==='capital-stack')return renderCapitalStack(deal,stack);
+  if(tab==='contacts')return renderContacts(deal,contacts);
+  if(tab==='milestones')return renderMilestones(deal,milestones);
+  if(tab==='payments')return renderPayments(deal,payments);
+  if(tab==='links')return renderLinks(deal);
+  if(tab==='images')return renderImages(deal);
+  return'';
+}
+
+// ── OVERVIEW TAB ─────────────────────────────────
+function renderOverview(deal,tasks,payments,stack){
+  const open=tasks.filter(t=>t.status!=='Done');
+  const done=tasks.filter(t=>t.status==='Done');
+  const moneyOut=(payments||[]).filter(p=>p.direction==='Outgoing').reduce((s,p)=>s+Number(p.amount||0),0);
+  const totalCommitted=Number(deal.total_cost||0);
+  const stackCommitted=(stack||[]).reduce((s,r)=>s+Number(r.amount||0),0);
+  return`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:16px">
+      <div class="metric-card metric-accent">
+        <div class="metric-label">Money Out (This Deal)</div>
+        <div class="metric-value neg" style="font-size:22px">${fmt$(moneyOut)}</div>
+        <div class="metric-sub">Total outgoing payments logged</div>
+      </div>
+      <div class="metric-card metric-accent">
+        <div class="metric-label">Total Committed</div>
+        <div class="metric-value" style="font-size:22px">${fmt$(totalCommitted||stackCommitted||null)}</div>
+        <div class="metric-sub">${totalCommitted&&moneyOut?`${fmt$(totalCommitted-moneyOut)} remaining`:'Full project budget'}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div>
+        <div class="card" style="padding:20px 22px;margin-bottom:16px">
+          <div class="section-hd" style="margin-bottom:16px"><div class="section-label">Deal Info</div><button class="btn btn-ghost btn-sm" onclick="openEditDeal(${deal.id})">Edit</button></div>
+          <div class="stat-grid" style="margin-bottom:16px">
+            <div class="stat-cell"><div class="stat-label">Acquisition</div><div class="stat-value money">${fmt$(deal.acquisition_price)}</div></div>
+            <div class="stat-cell"><div class="stat-label">Total Cost</div><div class="stat-value money">${fmt$(deal.total_cost)}</div></div>
+            <div class="stat-cell"><div class="stat-label">Units</div><div class="stat-value">${deal.num_units||'—'}</div></div>
+            <div class="stat-cell"><div class="stat-label">Site Improvements</div><div class="stat-value money">${fmt$(deal.site_improvements)}</div></div>
+            <div class="stat-cell"><div class="stat-label">Close Date</div><div class="stat-value">${fmtDate(deal.close_date)}</div></div>
+            <div class="stat-cell"><div class="stat-label">Target Exit</div><div class="stat-value">${fmtDate(deal.target_exit_date)}</div></div>
+          </div>
+          ${deal.notes?`<div class="divider"></div><div class="ov-label" style="margin-bottom:5px">Notes</div><div style="font-size:13px;color:var(--text-2);line-height:1.6">${deal.notes}</div>`:''}
+        </div>
+      </div>
+      <div>
+        <div class="card" style="padding:20px 22px">
+          <div class="section-hd" style="margin-bottom:12px">
+            <div class="section-label">Tasks <span style="color:var(--text-3);font-weight:400;font-size:10px;text-transform:none;letter-spacing:0">${open.length} open · ${done.length} done</span></div>
+            <button class="btn btn-ghost btn-sm" onclick="openNewTask(${deal.id})">+ Add</button>
+          </div>
+          ${open.length===0?`<div style="color:var(--text-3);font-size:13px;padding:16px 0;text-align:center">All tasks complete ✓</div>`:''}
+          ${open.map(t=>`
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:500;${isOverdue(t.due_date,t.status)?'color:var(--danger)':''};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.title}</div>
+                <div style="font-size:11px;color:var(--text-3);margin-top:2px">${userName(t.assigned_to)} · ${fmtDate(t.due_date)}${t.created_by&&t.created_by!==t.assigned_to?` <span class="watermark">· by <b>${userName(t.created_by)}</b></span>`:''}</div>
+              </div>
+              <div style="display:flex;gap:5px;align-items:center;flex-shrink:0">
+                ${taskBadge(t.status,t.due_date)}
+                ${t.status!=='Done'?`<button class="btn btn-mint btn-xs" onclick="markTaskDone(${t.id},'${deal.id}')">✓</button>`:''}<button class="btn btn-ghost btn-xs" onclick="openTaskModal(${deal.id},t)">Edit</button>
+              </div>
+            </div>`).join('')}
+          ${open.length>0&&done.length>0?`<div style="font-size:11px;color:var(--text-3);margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${done.length} completed tasks not shown</div>`:''}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── BUDGET TAB ────────────────────────────────────
+function renderSourcesUses(deal, su, stack, payments){
+  const budgetLines = su.filter(r => r.section === 'use');
+  const manualSources = su.filter(r => r.section === 'source');
+  const stackSources = (stack||[]).map(r => ({
+    id:'stack_'+r.id, label:r.party?r.tier+' \u2014 '+r.party:r.tier,
+    amount:r.amount, tier:r.tier, fromStack:true
+  }));
+  const allSources = [...stackSources, ...manualSources];
+  const totalBudget = budgetLines.reduce((s,r)=>s+Number(r.amount||0),0);
+  const totalSourced = allSources.reduce((s,r)=>s+Number(r.amount||0),0);
+  const financingGap = totalBudget - totalSourced;
+  const debtTiers = ['Senior Debt','Mezzanine'];
+  const tierColors = {'Senior Debt':'#0F1117','Mezzanine':'#4B5060','Preferred Equity':'#6EBF8B','LP Equity':'#3D9E62','GP Equity':'#1E6B40','Other':'#9499A8'};
+  const spentByLine = {};
+  (payments||[]).filter(p=>p.su_id!=null).forEach(p=>{
+    const k=String(p.su_id);
+    spentByLine[k]=(spentByLine[k]||0)+Number(p.amount||0);
+  });
+  const totalSpent = Object.values(spentByLine).reduce((s,v)=>s+v,0);
+  const cats = [['pursuit','Pursuit Costs'],['hard','Hard Costs'],['soft','Soft Costs'],['financing','Financing Costs'],['contingency','Contingency'],['other','Other']];
+
+  // Build budget lines HTML
+  let budgetLinesHTML = '';
+  if(budgetLines.length === 0){
+    budgetLinesHTML = '<div class="card" style="padding:36px;text-align:center"><div style="font-size:13px;color:var(--text-3);margin-bottom:14px">No budget lines yet. Add items for Pursuit Costs, Hard Costs, Soft Costs, etc.</div><button class="btn btn-ghost btn-sm" onclick="openNewSU('+deal.id+',\'use\')">+ Add First Line</button></div>';
+  } else {
+    let rows = '';
+    cats.forEach(function(pair){
+      const cat=pair[0], catLabel=pair[1];
+      const lines = budgetLines.filter(r=>r.category===cat);
+      if(!lines.length) return;
+      const catTotal = lines.reduce((s,r)=>s+Number(r.amount||0),0);
+      const catSpent = lines.reduce((s,r)=>s+(spentByLine[String(r.id)]||0),0);
+      const catPct = catTotal>0?Math.min((catSpent/catTotal)*100,100):0;
+      rows += '<div style="border-bottom:2px solid var(--border);background:var(--surface-2);padding:10px 18px;display:flex;align-items:center;gap:10px">';
+      rows += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-2);flex:1">'+catLabel+'</div>';
+      rows += '<div style="font-size:12px;font-family:var(--mono);color:var(--text-2)">'+fmt$(catSpent)+' / '+fmt$(catTotal)+'</div>';
+      rows += '<div style="width:80px;height:5px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--border)"><div style="height:100%;width:'+catPct+'%;background:'+(catPct>=100?'var(--danger)':'var(--mint)')+';border-radius:3px"></div></div></div>';
+      lines.forEach(function(r){
+        const spent = spentByLine[String(r.id)]||0;
+        const pct = Number(r.amount)>0?Math.min((spent/Number(r.amount))*100,100):0;
+        const dispPct = spent>0&&pct<1?1:pct;
+        const over = spent>Number(r.amount)&&Number(r.amount)>0;
+        const remaining = Number(r.amount)-spent;
+        rows += '<div style="padding:12px 18px;border-bottom:1px solid var(--border)">';
+        rows += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">';
+        rows += '<div style="flex:1"><div style="font-size:13.5px;font-weight:500">'+r.label+'</div>';
+        if(r.notes) rows += '<div style="font-size:11px;color:var(--text-3);margin-top:1px">'+r.notes+'</div>';
+        rows += '</div>';
+        rows += '<div style="text-align:right;flex-shrink:0"><div style="font-family:var(--mono);font-size:13px;font-weight:600">'+fmt$(r.amount)+'</div><div style="font-size:11px;color:var(--text-3)">budgeted</div></div>';
+        rows += '<div style="display:flex;gap:4px;flex-shrink:0">';
+        rows += '<button class="btn btn-ghost btn-xs" onclick="openSUModal(\''+deal.id+'\',\'use\','+r.id+')">Edit</button>';
+        rows += '<button class="btn btn-ghost btn-xs" onclick="deleteSU('+r.id+',\''+deal.id+'\')">×</button></div></div>';
+        rows += '<div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden;border:1px solid var(--border);margin-bottom:5px">';
+        rows += '<div style="height:100%;width:'+dispPct+'%;background:'+(over?'var(--danger)':pct>80?'var(--warning)':'var(--mint)')+';border-radius:4px;transition:width .3s"></div></div>';
+        rows += '<div style="display:flex;justify-content:space-between;align-items:center">';
+        rows += '<div style="font-size:11px;color:'+(over?'var(--danger)':'var(--text-3)')+'">Spent: <span style="font-family:var(--mono);font-weight:500;color:'+(over?'var(--danger)':'var(--text-2)')+'">'+fmt$(spent)+'</span>'+(over?' <span style="color:var(--danger)">⚠ Over budget</span>':'')+'</div>';
+        const remLabel = remaining<0?(fmt$(Math.abs(remaining))+' over'):remaining===0?'Fully spent':(fmt$(remaining)+' remaining');
+        rows += '<div style="font-size:11px;color:'+(remaining<0?'var(--danger)':remaining===0?'var(--success)':'var(--text-3)')+'">'+remLabel+' <span style="font-family:var(--mono)">('+pct.toFixed(0)+'%)</span></div></div></div>';
+      });
+    });
+    rows += '<div style="padding:12px 18px;background:var(--surface-2);display:flex;align-items:center;gap:8px"><div style="flex:1;font-weight:600;font-size:13px">Total Budget</div><div style="font-family:var(--mono);font-weight:600">'+fmt$(totalBudget)+'</div><div style="font-size:11px;color:var(--text-3);margin-left:8px">Spent: <span style="font-family:var(--mono);font-weight:500">'+fmt$(totalSpent)+'</span></div><div style="width:92px"></div></div>';
+    budgetLinesHTML = '<div class="card" style="padding:0;overflow:hidden">'+rows+'</div>';
+  }
+
+  // Build sources HTML
+  let sourcesHTML = '';
+  if(allSources.length === 0){
+    sourcesHTML = '<div class="card" style="padding:24px;text-align:center;font-size:13px;color:var(--text-3)">Add entries to the Capital Stack to populate sources automatically.</div>';
+  } else {
+    let srows = '';
+    if(allSources.length>1){
+      let bars = allSources.map(function(r){const pct=totalSourced>0?Number(r.amount)/totalSourced*100:0;return '<div style="width:'+pct+'%;background:'+(tierColors[r.tier||'Other']||'#9CA3AF')+'" title="'+r.label+': '+fmt$(r.amount)+'"></div>';}).join('');
+      let legend = allSources.map(function(r){const isDebt=debtTiers.includes(r.tier);return '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--text-2)"><div style="width:7px;height:7px;border-radius:2px;background:'+(tierColors[r.tier||'Other']||'#9CA3AF')+'"></div>'+r.label+'<span class="badge" style="font-size:9px;padding:1px 4px;'+(isDebt?'background:#EFF4FF;color:#2563EB':'background:#EAF5EF;color:#1E6B40')+'">'+(isDebt?'Debt':'Equity')+'</span></div>';}).join('');
+      srows += '<div style="padding:14px 16px;border-bottom:1px solid var(--border)"><div style="height:14px;border-radius:7px;overflow:hidden;display:flex;margin-bottom:8px">'+bars+'</div><div style="display:flex;gap:10px;flex-wrap:wrap">'+legend+'</div></div>';
+    }
+    allSources.forEach(function(r){
+      const pct = totalSourced>0?((Number(r.amount)/totalSourced)*100).toFixed(1):0;
+      const isDebt = debtTiers.includes(r.tier);
+      srows += '<div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px">';
+      srows += '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+r.label+'</div>';
+      srows += '<span class="badge" style="font-size:9px;padding:1px 5px;margin-top:2px;'+(isDebt?'background:#EFF4FF;color:#2563EB;border-color:#BFCFFE':'background:#EAF5EF;color:#1E6B40;border-color:#B8DFC7')+'">'+(isDebt?'Debt':'Equity')+'</span></div>';
+      srows += '<div style="text-align:right;flex-shrink:0"><div style="font-family:var(--mono);font-size:13px;font-weight:500">'+fmt$(r.amount)+'</div><div style="font-size:11px;color:var(--text-3)">'+pct+'%</div></div>';
+      srows += r.fromStack?'<div style="width:28px"></div>':'<button class="btn btn-ghost btn-xs" onclick="deleteSU('+r.id+',\''+deal.id+'\')">×</button>';
+      srows += '</div>';
+    });
+    srows += '<div style="padding:10px 16px;background:var(--surface-2);display:flex;align-items:center;gap:10px"><div style="flex:1;font-weight:600;font-size:13px">Total Sourced</div><div style="font-family:var(--mono);font-weight:600">'+fmt$(totalSourced)+'</div><div style="width:28px"></div></div>';
+    sourcesHTML = '<div class="card" style="padding:0;overflow:hidden;margin-bottom:14px">'+srows+'</div>';
+    const gapColor = financingGap>0?'var(--warning)':'var(--success)';
+    const gapText = financingGap>0?fmt$(financingGap):'Fully Funded \u2713';
+    const gapSub = financingGap>0?('Budget '+fmt$(totalBudget)+' \u2014 Sourced '+fmt$(totalSourced)+' = '+fmt$(financingGap)+' still needed'):'Capital stack covers the full budget';
+    sourcesHTML += '<div class="card" style="padding:16px 18px;border-left:3px solid '+gapColor+'"><div class="ov-label">Financing Gap</div><div style="font-size:22px;font-weight:600;font-family:var(--mono);color:'+gapColor+'">'+gapText+'</div><div style="font-size:12px;color:var(--text-3);margin-top:4px">'+gapSub+'</div></div>';
+  }
+
+  // Summary metrics
+  const overBudget = totalSpent > totalBudget && totalBudget > 0;
+  const remaining = totalBudget - totalSpent;
+  const metricsHTML = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'
+    +'<div class="metric-card metric-accent"><div class="metric-label">Total Budget</div><div class="metric-value" style="font-size:20px">'+fmt$(totalBudget)+'</div><div class="metric-sub">across all line items</div></div>'
+    +'<div class="metric-card metric-accent"><div class="metric-label">Total Spent</div><div class="metric-value neg" style="font-size:20px">'+fmt$(totalSpent)+'</div><div class="metric-sub">'+(totalBudget>0?((totalSpent/totalBudget)*100).toFixed(1)+'% of budget':'no budget set')+'</div></div>'
+    +'<div class="metric-card" style="border-left:3px solid '+(overBudget?'var(--danger)':remaining===0?'var(--text-3)':'var(--success)')+'"><div class="metric-label">Remaining Budget</div><div class="metric-value" style="font-size:20px;color:'+(overBudget?'var(--danger)':remaining===0?'var(--text-2)':'var(--success)')+'">'+fmt$(Math.abs(remaining))+'</div><div class="metric-sub">'+(overBudget?'<span style="color:var(--danger);font-weight:600">⚠ Over budget by '+fmt$(Math.abs(remaining))+'</span>':remaining===0?'Fully spent':'left to spend')+'</div></div>'
+    +'<div class="metric-card" style="border-left:3px solid '+(financingGap>0?'var(--warning)':'var(--success)')+'"><div class="metric-label">Financing Gap</div><div class="metric-value" style="font-size:20px;color:'+(financingGap>0?'var(--warning)':'var(--success)')+'">'+( financingGap>0?fmt$(financingGap):'Covered ✓')+'</div><div class="metric-sub">'+(financingGap>0?fmt$(totalSourced)+' sourced of '+fmt$(totalBudget)+' needed':'Capital stack ≥ budget')+'</div></div>'
+    +'</div>';
+
+  return metricsHTML
+    + '<div style="display:grid;grid-template-columns:3fr 2fr;gap:20px">'
+    + '<div><div class="section-hd" style="margin-bottom:14px"><div class="section-label">Budget Lines</div><button class="btn btn-ghost btn-sm" onclick="openNewSU('+deal.id+',\'use\')">+ Add Line</button></div>'+budgetLinesHTML+'</div>'
+    + '<div><div class="section-hd" style="margin-bottom:14px"><div class="section-label">Sources of Capital</div><button class="btn btn-ghost btn-sm" onclick="openNewSU('+deal.id+',\'source\')">+ Add</button></div>'+sourcesHTML+'</div>'
+    + '</div>';
+}
+
+// ── CAPITAL STACK TAB ─────────────────────────────
+function renderCapitalStack(deal,stack){
+  const total=stack.reduce((s,r)=>s+Number(r.amount||0),0);
+  const tc={'Senior Debt':'#0F1117','Mezzanine':'#4B5060','Preferred Equity':'#6EBF8B','LP Equity':'#3D9E62','GP Equity':'#1E6B40','Other':'#9499A8'};
+  const totalDebt=stack.filter(r=>['Senior Debt','Mezzanine'].includes(r.tier)).reduce((s,r)=>s+Number(r.amount||0),0);
+  const totalEquity=stack.filter(r=>['Preferred Equity','LP Equity','GP Equity'].includes(r.tier)).reduce((s,r)=>s+Number(r.amount||0),0);
+
+  // Build SVG pie chart
+  function buildPie(items,total,size=180){
+    if(!items.length||!total)return'';
+    let angle=-Math.PI/2;
+    const cx=size/2,cy=size/2,r=size/2-10,ri=size/2-40;
+    const slices=items.map(item=>{
+      const pct=Number(item.amount)/total;
+      const sweep=pct*2*Math.PI;
+      const x1=cx+r*Math.cos(angle),y1=cy+r*Math.sin(angle);
+      angle+=sweep;
+      const x2=cx+r*Math.cos(angle),y2=cy+r*Math.sin(angle);
+      const ix1=cx+ri*Math.cos(angle-sweep),iy1=cy+ri*Math.sin(angle-sweep);
+      const ix2=cx+ri*Math.cos(angle),iy2=cy+ri*Math.sin(angle);
+      const large=sweep>Math.PI?1:0;
+      const path=`M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${ri} ${ri} 0 ${large} 0 ${ix1} ${iy1} Z`;
+      return`<path d="${path}" fill="${tc[item.tier]||'#888'}" stroke="white" stroke-width="2"><title>${item.tier}${item.party?' — '+item.party:''}: ${fmt$(item.amount)} (${(pct*100).toFixed(1)}%)</title></path>`;
+    });
+    return`<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">${slices.join('')}</svg>`;
+  }
+
+  return`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:22px">
+      <div class="metric-card"><div class="metric-label">Total Stack</div><div class="metric-value" style="font-size:20px">${fmt$(total)}</div></div>
+      <div class="metric-card"><div class="metric-label">Total Debt</div><div class="metric-value" style="font-size:20px">${fmt$(totalDebt)}</div><div class="metric-sub">${total>0?((totalDebt/total)*100).toFixed(1)+'% LTV':''}</div></div>
+      <div class="metric-card"><div class="metric-label">Total Equity</div><div class="metric-value" style="font-size:20px">${fmt$(totalEquity)}</div><div class="metric-sub">${total>0?((totalEquity/total)*100).toFixed(1)+'% of stack':''}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:28px;align-items:start;margin-bottom:24px">
+      ${stack.length>0?`
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+        ${buildPie(stack,total,200)}
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${stack.map(r=>{const pct=total>0?((Number(r.amount)/total)*100).toFixed(1):0;return`<div style="display:flex;align-items:center;gap:7px;font-size:12px"><div style="width:10px;height:10px;border-radius:2px;background:${tc[r.tier]||'#888'};flex-shrink:0"></div><span style="color:var(--text-2)">${r.tier}${r.party?' — '+r.party:''}</span><span style="font-family:var(--mono);font-weight:600;margin-left:auto;padding-left:12px">${pct}%</span></div>`;}).join('')}
+        </div>
+      </div>`:''}
+      <div>
+        <div class="section-hd"><div class="section-label">Capital Stack</div><button class="btn btn-ghost btn-sm" onclick="openNewCapital(${deal.id})">+ Add Tier</button></div>
+        <div class="table-wrap">
+          ${stack.length===0?'<div class="empty"><p>No capital stack entries yet.</p></div>':`
+          <table>
+            <thead><tr><th>Tier</th><th>Party</th><th>Amount</th><th>% of Stack</th><th>Rate</th><th>Promote %</th><th>Notes</th><th></th></tr></thead>
+            <tbody>
+              ${stack.map(r=>`<tr>
+                <td><span class="badge" style="background:${tc[r.tier]||'#888'}22;color:${tc[r.tier]||'#555'};border-color:${tc[r.tier]||'#888'}44">${r.tier}</span></td>
+                <td>${r.party||'—'}</td>
+                <td style="font-family:var(--mono)">${fmt$(r.amount)}</td>
+                <td style="font-family:var(--mono)">${total>0?((Number(r.amount)/total)*100).toFixed(1)+'%':'—'}</td>
+                <td>${r.rate?(r.rate*100).toFixed(2)+'%':'—'}</td>
+                <td style="font-family:var(--mono)">${r.promote_pct!=null?r.promote_pct+'%':'—'}</td>
+                <td style="color:var(--text-3);font-size:12px;max-width:140px;overflow:hidden;text-overflow:ellipsis">${r.notes||'—'}</td>
+                <td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick="openCapitalModal(${deal.id},${r.id})">Edit</button><button class="btn btn-ghost btn-xs" onclick="deleteCapital(${r.id},'${deal.id}')">×</button></div></td>
+              </tr>`).join('')}
+              <tr style="background:var(--surface-2)"><td colspan="2" style="font-weight:600">Total</td><td style="font-family:var(--mono);font-weight:600">${fmt$(total)}</td><td style="font-family:var(--mono)">100%</td><td colspan="4"></td></tr>
+            </tbody>
+          </table>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── CONTACTS TAB ─────────────────────────────────
+function renderContacts(deal,contacts){
+  const roleColors={'Attorney':'#EFF4FF','General Contractor':'#FEF9EC','Architect':'#F5F0FF','Property Manager':'#EAF5EF','Lender':'#F0F7FF','Broker':'#FDF2F3','Engineer':'#F5F6F7','Accountant':'#FEF9EC','Other':'#F3F4F6'};
+  return`
+    <div class="section-hd"><div class="section-label">Key Contacts</div><button class="btn btn-ghost btn-sm" onclick="openNewContact(${deal.id})">+ Add Contact</button></div>
+    ${contacts.length===0?'<div class="empty"><div class="empty-icon">👤</div><p>No contacts added yet — add attorneys, contractors, lenders, architects, and more.</p></div>':`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      ${contacts.map(c=>`
+        <div class="card" style="padding:16px 18px">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <div style="width:38px;height:38px;border-radius:50%;background:${roleColors[c.role]||'#F3F4F6'};display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--text);flex-shrink:0">${(c.name||'?')[0].toUpperCase()}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:14px">${c.name}</div>
+              <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;margin-top:2px">${c.role||'Contact'}</div>
+              ${c.company?`<div style="font-size:12px;color:var(--text-2);margin-top:4px">${c.company}</div>`:''}
+              ${c.email?`<div style="font-size:12px;margin-top:4px"><a href="mailto:${c.email}" style="color:var(--mint-text);text-decoration:none">${c.email}</a></div>`:''}
+              ${c.phone?`<div style="font-size:12px;color:var(--text-2);margin-top:2px">${c.phone}</div>`:''}
+              ${c.notes?`<div style="font-size:12px;color:var(--text-3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${c.notes}</div>`:''}
+            </div>
+            <div style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick="openContactModal(${deal.id},${c.id})">Edit</button><button class="btn btn-ghost btn-xs" onclick="deleteContact(${c.id},'${deal.id}')">×</button></div>
+          </div>
+        </div>`).join('')}
+    </div>`}`;
+}
+
+// ── MILESTONES TAB ────────────────────────────────
+function renderMilestones(deal,milestones){
+  const done=milestones.filter(m=>m.completed).length;
+  return`
+    <div class="section-hd"><div class="section-label">Milestones <span style="color:var(--text-3);font-weight:400;text-transform:none;letter-spacing:0;font-size:11px">${done}/${milestones.length} complete</span></div><button class="btn btn-ghost btn-sm" onclick="openNewMilestone(${deal.id})">+ Add</button></div>
+    ${milestones.length===0?'<div class="empty"><p>No milestones yet.</p></div>':`
+    <div class="card" style="padding:4px 22px">
+      ${milestones.map(m=>`
+        <div class="milestone-item">
+          <div class="m-check ${m.completed?'done':''}" onclick="toggleMilestone(${m.id},${!m.completed},'${deal.id}')">${m.completed?'✓':''}</div>
+          <div style="flex:1">
+            <div class="m-title ${m.completed?'done':''}">${m.title}</div>
+            <div class="m-meta">${m.target_date?`Target: ${fmtDate(m.target_date)}`:'No date set'}${m.completed&&m.completed_date?` · Completed: ${fmtDate(m.completed_date)}`:''}${!m.completed&&m.target_date&&isOverdue(m.target_date,'')?` · <span style="color:var(--danger)">Overdue</span>`:''}</div>
+            ${m.notes?`<div style="font-size:12px;color:var(--text-3);margin-top:2px">${m.notes}</div>`:''}
+            ${m.links&&m.links.length?`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px">${m.links.map((l,i)=>`<a class="m-link" href="${l}" target="_blank">Link ${i+1} ↗</a>`).join('')}</div>`:'' }
+          </div>
+          <div style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick="openMilestoneModal(${deal.id},${m.id})">Edit</button><button class="btn btn-ghost btn-xs" onclick="deleteMilestone(${m.id},'${deal.id}')">×</button></div>
+        </div>`).join('')}
+    </div>`}`;
+}
+
+// ── PAYMENTS TAB ──────────────────────────────────
+function renderPayments(deal,payments){
+  const tIn=payments.filter(p=>p.direction==='Incoming').reduce((s,p)=>s+Number(p.amount||0),0);
+  const tOut=payments.filter(p=>p.direction==='Outgoing').reduce((s,p)=>s+Number(p.amount||0),0);
+  return`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px">
+      <div class="metric-card"><div class="metric-label">Total Incoming</div><div class="pos" style="font-size:22px;font-family:var(--mono);font-weight:600">${fmt$(tIn)}</div></div>
+      <div class="metric-card"><div class="metric-label">Total Outgoing</div><div class="neg" style="font-size:22px;font-family:var(--mono);font-weight:600">${fmt$(tOut)}</div></div>
+      <div class="metric-card"><div class="metric-label">Net</div><div style="font-size:22px;font-family:var(--mono);font-weight:600;color:${tIn-tOut>=0?'var(--success)':'var(--danger)'}">${fmt$(tIn-tOut)}</div></div>
+    </div>
+    <div class="section-hd">
+      <div class="section-label">Payment Log</div>
+      <div class="toolbar">
+        <button class="btn btn-ghost btn-sm" onclick="triggerAFSync()" id="af-sync-btn" title="Sync latest transactions from AppFolio via sync server">⟳ Sync AppFolio</button>
+        <button class="btn btn-ghost btn-sm" onclick="openQBImport(${deal.id})" title="Import transactions from a QuickBooks CSV export">↑ Import from QB</button>
+        <button class="btn btn-ghost btn-sm" onclick="openAFImport(${deal.id})" title="Import transactions from an AppFolio CSV export">↑ Import from AppFolio CSV</button>
+        <button class="btn btn-ghost btn-sm" onclick="openNewPayment(${deal.id})">+ Log Payment</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      ${payments.length===0?'<div class="empty"><p>No payments logged yet.</p></div>':`
+      <table>
+        <thead><tr><th>Date</th><th>Direction</th><th>Category</th><th>Party</th><th>Amount</th><th>Source</th><th>Notes</th><th></th></tr></thead>
+        <tbody>
+          ${payments.map(p=>`<tr>
+            <td style="font-family:var(--mono);font-size:12px">${fmtDate(p.pay_date)}</td>
+            <td><span class="badge ${p.direction==='Incoming'?'badge-in':'badge-out'}">${p.direction}</span></td>
+            <td style="color:var(--text-2)">${p.category||'—'}</td>
+            <td>${p.party||'—'}</td>
+            <td style="font-family:var(--mono);color:${p.direction==='Incoming'?'var(--success)':'var(--danger)'}">${p.direction==='Incoming'?'+':'-'}${fmt$(p.amount)}</td>
+            <td>${p.from_qb?'<span class="badge badge-open" style="font-size:9px">QB</span>':'<span style="color:var(--text-3);font-size:11px">Manual</span>'}</td>
+            <td style="color:var(--text-3);font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis">${p.notes||'—'}</td>
+            <td><div style="display:flex;gap:4px"><button class="btn btn-ghost btn-xs" onclick="openPaymentModal(${deal.id},${p.id})">Edit</button><button class="btn btn-ghost btn-xs" onclick="deletePayment(${p.id},'${deal.id}')">×</button></div></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>`;
+}
+
+// ── APPFOLIO SYNC SERVER ──────────────────────────
+// Set this to your DigitalOcean server IP/domain after setup
+const AF_SYNC_URL = localStorage.getItem('af_sync_url') || '';
+const AF_API_KEY  = localStorage.getItem('af_api_key')  || '';
+
+async function triggerAFSync(){
+  if(!AF_SYNC_URL){
+    openSyncConfig();
+    return;
+  }
+  const btn=document.getElementById('af-sync-btn');
+  if(btn){btn.textContent='Syncing...';btn.disabled=true;}
+  try{
+    const res=await fetch(`${AF_SYNC_URL}/sync`,{
+      method:'POST',
+      headers:{'X-API-Key':AF_API_KEY,'Content-Type':'application/json'}
+    });
+    const data=await res.json();
+    if(data.status==='ok'){
+      showToast('Sync started — payments will appear in a moment','success');
+      // Reload payments after 5 seconds
+      setTimeout(()=>renderDealDetail(currentDealId),5000);
+    } else {
+      showToast('Sync failed: '+data.message,'error');
+    }
+  }catch(e){
+    showToast('Could not reach sync server. Check server is running.','error');
+  }
+  if(btn){btn.textContent='⟳ Sync AppFolio';btn.disabled=false;}
+}
+
+async function getSyncStatus(){
+  if(!AF_SYNC_URL) return null;
+  try{
+    const res=await fetch(`${AF_SYNC_URL}/sync/status`,{
+      headers:{'X-API-Key':AF_API_KEY}
+    });
+    return await res.json();
+  }catch(e){ return null; }
+}
+
+function openSyncConfig(){
+  openModal('modal-deal',`
+    <button class="modal-close" onclick="closeModal('modal-deal')">×</button>
+    <div class="modal-title">AppFolio Sync Server</div>
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:18px;line-height:1.6">
+      Enter your sync server details. These are saved in your browser only.
+    </div>
+    <div class="form-row">
+      <label class="form-label">Server URL</label>
+      <input class="form-input" id="sync-url" value="${AF_SYNC_URL}" placeholder="http://YOUR_SERVER_IP:5001">
+    </div>
+    <div class="form-row">
+      <label class="form-label">API Key</label>
+      <input class="form-input" id="sync-key" type="password" value="${AF_API_KEY}" placeholder="Your B3_API_KEY from the server">
+    </div>
+    <div id="sync-test-msg" style="font-size:12px;margin-top:4px"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="testSyncServer()">Test Connection</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-deal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSyncConfig()">Save</button>
+    </div>`);
+}
+
+async function testSyncServer(){
+  const url=document.getElementById('sync-url').value.trim();
+  const key=document.getElementById('sync-key').value.trim();
+  const msg=document.getElementById('sync-test-msg');
+  msg.textContent='Testing...';msg.style.color='var(--text-3)';
+  try{
+    const res=await fetch(`${url}/health`,{headers:{'X-API-Key':key}});
+    const data=await res.json();
+    if(data.status==='ok'){
+      msg.style.color='var(--success)';msg.textContent='✓ Connected successfully';
+    } else {
+      msg.style.color='var(--danger)';msg.textContent='Server responded but returned unexpected status';
+    }
+  }catch(e){
+    msg.style.color='var(--danger)';msg.textContent='Could not connect — check URL and that server is running';
+  }
+}
+
+function saveSyncConfig(){
+  const url=document.getElementById('sync-url').value.trim();
+  const key=document.getElementById('sync-key').value.trim();
+  localStorage.setItem('af_sync_url',url);
+  localStorage.setItem('af_api_key',key);
+  closeModal('modal-deal');
+  showToast('Sync server configured','success');
+}
+
+function showToast(msg, type='success'){
+  const t=document.createElement('div');
+  t.style.cssText=`position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 18px;border-radius:8px;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,.15);transition:opacity .3s;background:${type==='success'?'var(--success)':'var(--danger)'};color:#fff`;
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},3500);
+}
+
+// ── QB CSV IMPORT ─────────────────────────────────
+function openQBImport(dealId){
+  const deal=allDeals.find(d=>d.id==dealId);
+  openModal('modal-payment',`
+    <button class="modal-close" onclick="closeModal('modal-payment')">×</button>
+    <div class="modal-title">Import from QuickBooks</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:18px;font-size:13px;color:var(--text-2);line-height:1.7">
+      <strong style="color:var(--text)">How to export from QuickBooks:</strong><br>
+      1. Reports → Transaction Detail by Account (or any transaction report)<br>
+      2. Customize → add <strong>Class</strong> column → Class should match your deal names<br>
+      3. Export → Download as CSV<br>
+      4. Upload below — matched transactions import automatically, unclassified ones let you assign a deal manually
+    </div>
+    <div class="form-row">
+      <label class="form-label">QuickBooks CSV Export</label>
+      <input type="file" accept=".csv" id="qb-file" class="form-input" style="padding:6px" onchange="previewQBImport(${dealId})">
+    </div>
+    <div id="qb-preview"></div>
+  `);
+}
+
+function parseQBCSV(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  let headerIdx=lines.findIndex(l=>l.toLowerCase().includes('date')&&(l.toLowerCase().includes('amount')||l.toLowerCase().includes('class')));
+  if(headerIdx===-1)headerIdx=0;
+  const headers=parseCSVRow(lines[headerIdx]).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
+  const rows=[];
+  for(let i=headerIdx+1;i<lines.length;i++){
+    const vals=parseCSVRow(lines[i]);
+    if(vals.length<2)continue;
+    const row={};
+    headers.forEach((h,j)=>row[h]=vals[j]?vals[j].trim().replace(/^"|"$/g,''):'');
+    rows.push(row);
+  }
+  return rows;
+}
+
+function parseCSVRow(line){
+  const result=[];let cur='';let inQuote=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){inQuote=!inQuote;}
+    else if(c===','&&!inQuote){result.push(cur);cur='';}
+    else{cur+=c;}
+  }
+  result.push(cur);
+  return result;
+}
+
+function mapQBRow(r,dealId,findCol){
+  const rawAmt=findCol(r,'amount','total','debit','credit');
+  const amt=parseFloat(rawAmt.replace(/[$,()]/g,''))||0;
+  const isCredit=rawAmt.includes('(');
+  const rawDate=findCol(r,'date');
+  let payDate=null;
+  try{const d=new Date(rawDate);if(!isNaN(d))payDate=d.toISOString().split('T')[0];}catch(e){}
+  return{
+    pay_date:payDate,
+    direction:isCredit?'Incoming':'Outgoing',
+    party:findCol(r,'name','vendor','payee','customer'),
+    category:findCol(r,'transaction type','type','account','memo')||'QB Import',
+    amount:Math.abs(amt),
+    notes:findCol(r,'memo','description','split'),
+    from_qb:true,
+    deal_id:dealId,
+    created_by:currentUser.id,
+    paid:true
+  };
+}
+
+function previewRowHTML(p,idx,showDealPicker=false){
+  const dealPicker=showDealPicker?`
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border)">
+      <select class="form-select" id="unmatched-deal-${idx}" style="font-size:11px;padding:4px 6px">
+        <option value="">— Skip —</option>
+        ${allDeals.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
+      </select>
+    </td>`:'';
+  return`<tr>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border);font-family:var(--mono)">${fmtDate(p.pay_date)}</td>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border)">${p.party||'—'}</td>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border);color:var(--text-2)">${p.category}</td>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border)"><span class="badge ${p.direction==='Incoming'?'badge-in':'badge-out'}">${p.direction}</span></td>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border);font-family:var(--mono);text-align:right;color:${p.direction==='Incoming'?'var(--success)':'var(--danger)'}">${fmt$(p.amount)}</td>
+    ${dealPicker}
+  </tr>`;
+}
+
+// Store parsed rows globally so confirmQBImport can read deal picker values
+let _qbMatched=[], _qbUnmatched=[];
+
+async function previewQBImport(dealId){
+  const file=document.getElementById('qb-file').files[0];
+  if(!file)return;
+  const deal=allDeals.find(d=>d.id==dealId);
+  const dealName=(deal?.name||'').toLowerCase().trim();
+  const text=await file.text();
+  const rows=parseQBCSV(text);
+  const preview=document.getElementById('qb-preview');
+
+  const findCol=(row,...names)=>{
+    for(const n of names){const k=Object.keys(row).find(k=>k.includes(n));if(k)return row[k]||'';}
+    return'';
+  };
+
+  // Separate into matched (class = this deal), other-deal (class = another deal), and unclassified
+  const matched=[], unclassified=[];
+  rows.forEach(r=>{
+    const cls=(findCol(r,'class')||'').toLowerCase().trim();
+    const mapped=mapQBRow(r,dealId,findCol);
+    if(!mapped.amount||!mapped.pay_date)return;
+    if(!cls){
+      unclassified.push(mapped);
+    } else if(cls===dealName||cls.includes(dealName)||(dealName.includes(cls)&&cls.length>3)){
+      matched.push(mapped);
+    }
+    // transactions classified to OTHER deals are silently skipped here
+  });
+
+  _qbMatched=matched;
+  _qbUnmatched=unclassified;
+
+  if(!matched.length&&!unclassified.length){
+    preview.innerHTML=`<div style="padding:16px;background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:var(--radius-sm);color:var(--danger);font-size:13px;margin-top:12px">
+      No matching or unclassified transactions found. Make sure transactions in QuickBooks have a Class set, or that at least some are unclassified so you can assign them here.
+    </div>`;
+    return;
+  }
+
+  const tableHead=(extra='')=>`<thead><tr>
+    <th style="text-align:left;font-size:10px;color:var(--text-3);padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)">Date</th>
+    <th style="text-align:left;font-size:10px;color:var(--text-3);padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)">Party</th>
+    <th style="text-align:left;font-size:10px;color:var(--text-3);padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)">Type</th>
+    <th style="text-align:left;font-size:10px;color:var(--text-3);padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)">Direction</th>
+    <th style="text-align:right;font-size:10px;color:var(--text-3);padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)">Amount</th>
+    ${extra}
+  </tr></thead>`;
+
+  preview.innerHTML=`<div style="margin-top:16px">
+    ${matched.length?`
+      <div style="font-size:11px;font-weight:600;color:var(--mint-text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--mint);display:inline-block"></span>
+        ${matched.length} matched to "${deal?.name}"
+      </div>
+      <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px">
+        <table style="width:100%;border-collapse:collapse">
+          ${tableHead()}
+          <tbody>${matched.map((p,i)=>previewRowHTML(p,i,false)).join('')}</tbody>
+        </table>
+      </div>`:''}
+
+    ${unclassified.length?`
+      <div style="font-size:11px;font-weight:600;color:var(--warning);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block"></span>
+        ${unclassified.length} unclassified — assign a deal or skip
+      </div>
+      <div style="max-height:220px;overflow-y:auto;border:1px solid var(--warning-border);border-radius:var(--radius-sm);margin-bottom:16px;background:var(--warning-bg)">
+        <table style="width:100%;border-collapse:collapse">
+          ${tableHead('<th style="text-align:left;font-size:10px;color:var(--text-3);padding:8px 12px;border-bottom:1px solid var(--border);background:var(--warning-bg)">Assign to Deal</th>')}
+          <tbody style="background:var(--surface)">${unclassified.map((p,i)=>previewRowHTML(p,i,true)).join('')}</tbody>
+        </table>
+      </div>`:''}
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:4px">
+      <button class="btn btn-ghost" onclick="closeModal('modal-payment')">Cancel</button>
+      <button class="btn btn-primary" id="qb-confirm-btn" onclick="confirmQBImport(${dealId})">
+        Import ${matched.length} matched${unclassified.length?` + assigned unclassified`:''}
+      </button>
+    </div>
+  </div>`;
+}
+
+async function confirmQBImport(dealId){
+  const btn=document.getElementById('qb-confirm-btn');
+  btn.textContent='Importing...';btn.disabled=true;
+
+  // Collect unmatched rows that had a deal assigned
+  const assigned=_qbUnmatched.map((p,i)=>{
+    const sel=document.getElementById(`unmatched-deal-${i}`);
+    const assignedDealId=sel?sel.value:'';
+    if(!assignedDealId)return null;
+    return{...p,deal_id:Number(assignedDealId)};
+  }).filter(Boolean);
+
+  const allRows=[..._qbMatched,...assigned];
+  if(!allRows.length){closeModal('modal-payment');return;}
+
+  try{
+    for(let i=0;i<allRows.length;i+=50){
+      await sb.from('payments').insert(allRows.slice(i,i+50));
+    }
+    closeModal('modal-payment');
+    cacheInvalidate('deal-'+dealId);await renderDealDetail(dealId);
+  }catch(err){
+    btn.textContent='Import failed — try again';btn.disabled=false;
+    console.error(err);
+  }
+}
+
+// ── APPFOLIO CSV IMPORT ───────────────────────────
+// AppFolio export columns (Transaction Detail report):
+// Date, Property, Unit, Tenant, Type, Description, Reference, Amount, Balance
+// "Property" column is used to match deals — should match deal name
+
+function openAFImport(dealId){
+  const deal=allDeals.find(d=>d.id==dealId);
+  openModal('modal-payment',`
+    <button class="modal-close" onclick="closeModal('modal-payment')">×</button>
+    <div class="modal-title">Import from AppFolio</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:18px;font-size:13px;color:var(--text-2);line-height:1.7">
+      <strong style="color:var(--text)">How to export from AppFolio:</strong><br>
+      1. Reports → General Ledger or Transaction Detail<br>
+      2. Filter by date range → Run Report<br>
+      3. Export → Download CSV<br>
+      4. Upload below — transactions where <strong>Property</strong> matches <strong>"${deal?.name||'this deal'}"</strong> import automatically. Unmatched rows can be assigned manually.
+    </div>
+    <div class="form-row">
+      <label class="form-label">AppFolio CSV Export</label>
+      <input type="file" accept=".csv" id="af-file" class="form-input" style="padding:6px" onchange="previewAFImport(${dealId})">
+    </div>
+    <div id="af-preview"></div>
+  `);
+}
+
+function parseAFCSV(text){
+  // AppFolio CSVs often have header metadata rows before the actual data
+  const lines=text.split('\\n').map(l=>l.trim()).filter(Boolean);
+  // Find the header row — look for "Date" + ("Property" or "Amount" or "Description")
+  let headerIdx=lines.findIndex(l=>{
+    const ll=l.toLowerCase();
+    return ll.includes('date')&&(ll.includes('property')||ll.includes('amount')||ll.includes('description'));
+  });
+  if(headerIdx===-1)headerIdx=0;
+  const headers=parseCSVRow(lines[headerIdx]).map(h=>h.trim().toLowerCase().replace(/['"]/g,''));
+  const rows=[];
+  for(let i=headerIdx+1;i<lines.length;i++){
+    const vals=parseCSVRow(lines[i]);
+    if(vals.length<2)continue;
+    const row={};
+    headers.forEach((h,j)=>row[h]=vals[j]?vals[j].trim().replace(/^"|"$/g,''):'');
+    // Skip summary/total rows
+    if(!row['date']&&!row['amount'])continue;
+    rows.push(row);
+  }
+  return rows;
+}
+
+function mapAFRow(r,dealId){
+  // AppFolio column name variants
+  const get=(...keys)=>{for(const k of keys){const found=Object.keys(r).find(rk=>rk.includes(k));if(found&&r[found])return r[found];}return'';};
+  const rawAmt=get('amount','total','debit','credit');
+  const amt=parseFloat(rawAmt.replace(/[$,()]/g,''))||0;
+  // AppFolio shows debits (outgoing) as negative, credits (incoming) as positive
+  const isNeg=rawAmt.startsWith('-')||rawAmt.includes('(');
+  const rawDate=get('date');
+  let payDate=null;
+  try{const d=new Date(rawDate);if(!isNaN(d))payDate=d.toISOString().split('T')[0];}catch(e){}
+  // Type/Description → category
+  const typeField=get('type','transaction type','category');
+  const descField=get('description','memo','notes','reference','payee');
+  return{
+    pay_date:payDate,
+    direction:isNeg?'Outgoing':'Incoming',
+    party:get('tenant','vendor','payee','name'),
+    category:typeField||'AppFolio Import',
+    amount:Math.abs(amt),
+    notes:descField,
+    from_qb:true, // reusing flag for any external import
+    deal_id:dealId,
+    created_by:currentUser.id,
+    paid:true
+  };
+}
+
+let _afMatched=[], _afUnmatched=[];
+
+async function previewAFImport(dealId){
+  const file=document.getElementById('af-file').files[0];
+  if(!file)return;
+  const deal=allDeals.find(d=>d.id==dealId);
+  const dealName=(deal?.name||'').toLowerCase().trim();
+  const text=await file.text();
+  const rows=parseAFCSV(text);
+  const preview=document.getElementById('af-preview');
+
+  const getProp=r=>{
+    const k=Object.keys(r).find(k=>k.includes('property')||k.includes('building'));
+    return k?r[k]||'':'';
+  };
+
+  const matched=[], unclassified=[];
+  rows.forEach(r=>{
+    const mapped=mapAFRow(r,dealId);
+    if(!mapped.amount||!mapped.pay_date)return;
+    const prop=(getProp(r)||'').toLowerCase().trim();
+    if(!prop){
+      unclassified.push(mapped);
+    } else if(prop===dealName||prop.includes(dealName)||(dealName.includes(prop)&&prop.length>3)){
+      matched.push(mapped);
+    }
+    // transactions for other properties skipped here
+  });
+
+  _afMatched=matched;
+  _afUnmatched=unclassified;
+
+  if(!matched.length&&!unclassified.length){
+    preview.innerHTML=`<div style="padding:16px;background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:var(--radius-sm);color:var(--danger);font-size:13px;margin-top:12px">
+      No matching or unclassified transactions found.<br>
+      <span style="font-size:12px;opacity:.8">Make sure the <strong>Property</strong> column in your AppFolio export matches "${deal?.name}" — or export a report filtered to just this property.</span>
+    </div>`;
+    return;
+  }
+
+  const thStyle='text-align:left;font-size:10px;color:var(--text-3);padding:8px 12px;border-bottom:1px solid var(--border);background:var(--bg)';
+  const tableHead=(extra='')=>`<thead><tr>
+    <th style="${thStyle}">Date</th><th style="${thStyle}">Party</th>
+    <th style="${thStyle}">Type</th><th style="${thStyle}">Dir</th>
+    <th style="${thStyle};text-align:right">Amount</th>${extra}
+  </tr></thead>`;
+
+  const rowHTML=(p,i,showPicker)=>`<tr>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border);font-family:var(--mono)">${fmtDate(p.pay_date)}</td>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border)">${p.party||'—'}</td>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border);color:var(--text-2)">${p.category}</td>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border)"><span class="badge ${p.direction==='Incoming'?'badge-in':'badge-out'}">${p.direction}</span></td>
+    <td style="font-size:12px;padding:7px 12px;border-bottom:1px solid var(--border);font-family:var(--mono);text-align:right;color:${p.direction==='Incoming'?'var(--success)':'var(--danger)'}">${fmt$(p.amount)}</td>
+    ${showPicker?`<td style="padding:5px 12px;border-bottom:1px solid var(--border)"><select class="form-select" id="af-unmatched-deal-${i}" style="font-size:11px;padding:4px 6px"><option value="">— Skip —</option>${allDeals.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}</select></td>`:''}
+  </tr>`;
+
+  preview.innerHTML=`<div style="margin-top:16px">
+    ${matched.length?`
+      <div style="font-size:11px;font-weight:600;color:var(--mint-text);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--mint);display:inline-block"></span>
+        ${matched.length} matched to "${deal?.name}"
+      </div>
+      <div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:16px">
+        <table style="width:100%;border-collapse:collapse">${tableHead()}<tbody>${matched.map((p,i)=>rowHTML(p,i,false)).join('')}</tbody></table>
+      </div>`:''}
+    ${unclassified.length?`
+      <div style="font-size:11px;font-weight:600;color:var(--warning);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--warning);display:inline-block"></span>
+        ${unclassified.length} unclassified — assign a deal or skip
+      </div>
+      <div style="max-height:220px;overflow-y:auto;border:1px solid var(--warning-border);border-radius:var(--radius-sm);margin-bottom:16px;background:var(--warning-bg)">
+        <table style="width:100%;border-collapse:collapse">${tableHead(`<th style="${thStyle};background:var(--warning-bg)">Assign to Deal</th>`)}<tbody style="background:var(--surface)">${unclassified.map((p,i)=>rowHTML(p,i,true)).join('')}</tbody></table>
+      </div>`:''}
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:4px">
+      <button class="btn btn-ghost" onclick="closeModal('modal-payment')">Cancel</button>
+      <button class="btn btn-primary" id="af-confirm-btn" onclick="confirmAFImport(${dealId})">Import ${matched.length} matched${unclassified.length?` + assigned`:''}</button>
+    </div>
+  </div>`;
+}
+
+async function confirmAFImport(dealId){
+  const btn=document.getElementById('af-confirm-btn');
+  btn.textContent='Importing...';btn.disabled=true;
+  const assigned=_afUnmatched.map((p,i)=>{
+    const sel=document.getElementById(`af-unmatched-deal-${i}`);
+    const id=sel?sel.value:'';
+    return id?{...p,deal_id:Number(id)}:null;
+  }).filter(Boolean);
+  const allRows=[..._afMatched,...assigned];
+  if(!allRows.length){closeModal('modal-payment');return;}
+  try{
+    for(let i=0;i<allRows.length;i+=50)await sb.from('payments').insert(allRows.slice(i,i+50));
+    cacheInvalidate('deal-'+dealId);
+    closeModal('modal-payment');
+    await renderDealDetail(dealId);
+  }catch(err){
+    btn.textContent='Import failed — try again';btn.disabled=false;
+    console.error(err);
+  }
+}
+
+// ── IMAGES TAB ────────────────────────────────────
+function renderImages(deal){
+  const imgs=deal.images||[];
+  const cats=['Exterior','Interior','Site','Construction Progress','Renderings','Other'];
+  const grouped={};
+  imgs.forEach(img=>{const c=img.category||'Other';if(!grouped[c])grouped[c]=[];grouped[c].push(img);});
+  return`
+    <div class="section-hd">
+      <div class="section-label">Property Images</div>
+      <button class="btn btn-ghost btn-sm" onclick="openAddImage(${deal.id})">+ Add Image Link</button>
+    </div>
+    ${imgs.length===0?`
+    <div class="card" style="padding:48px;text-align:center">
+      <div style="font-size:28px;margin-bottom:12px;opacity:.3">🖼</div>
+      <div style="font-size:13px;color:var(--text-3);margin-bottom:16px">No images yet. Paste links to images hosted in Google Drive, Dropbox, or any public URL.</div>
+      <button class="btn btn-ghost btn-sm" onclick="openAddImage(${deal.id})">+ Add Image Link</button>
+    </div>`:`
+    ${cats.filter(c=>grouped[c]).map(cat=>`
+      <div style="margin-bottom:24px">
+        <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px">${cat}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">
+          ${grouped[cat].map((img,i)=>`
+            <div class="card" style="padding:0;overflow:hidden;position:relative">
+              <div style="aspect-ratio:4/3;background:var(--bg);overflow:hidden;cursor:pointer" onclick="window.open('${img.url}','_blank')">
+                <img src="${img.url}" alt="${img.label||cat}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-3);font-size:12px;flex-direction:column;gap:6px\\'><span style=\\'font-size:20px;opacity:.3\\'>🔗</span><span>${img.label||'View image'}</span></div>'">
+              </div>
+              <div style="padding:10px 12px;display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:12px;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${img.label||'Image '+(i+1)}</div>
+                <div style="display:flex;gap:4px;flex-shrink:0;margin-left:8px">
+                  <a href="${img.url}" target="_blank" class="btn btn-ghost btn-xs">↗</a>
+                  <button class="btn btn-ghost btn-xs" onclick="deleteImage(${deal.id},${imgs.indexOf(img)})">×</button>
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`).join('')}
+    `}`;
+}
+
+// ── MODAL: ADD IMAGE ──────────────────────────────
+function openAddImage(dealId){
+  const cats=['Exterior','Interior','Site','Construction Progress','Renderings','Other'];
+  openModal('modal-link',`
+    <button class="modal-close" onclick="closeModal('modal-link')">×</button>
+    <div class="modal-title">Add Image</div>
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:16px;background:var(--bg);padding:10px 12px;border-radius:6px;border:1px solid var(--border)">
+      Paste a direct image URL or a Google Drive share link. For Google Drive, set sharing to "Anyone with the link."
+    </div>
+    <div class="form-row"><label class="form-label">Image URL *</label><input class="form-input" id="img-url" placeholder="https://drive.google.com/... or direct image URL"></div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Label</label><input class="form-input" id="img-label" placeholder="e.g. Front elevation"></div>
+      <div class="form-row"><label class="form-label">Category</label><select class="form-select" id="img-cat">${cats.map(c=>`<option>${c}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-link')">Cancel</button><button class="btn btn-primary" onclick="saveImage(${dealId})">Add Image</button></div>`);
+}
+async function saveImage(dealId){
+  const url=document.getElementById('img-url').value.trim();
+  if(!url)return alert('URL required.');
+  const {data:deal}=await sb.from('deals').select('images').eq('id',dealId).single();
+  const images=deal.images||[];
+  images.push({url,label:document.getElementById('img-label').value.trim()||'',category:document.getElementById('img-cat').value});
+  await sb.from('deals').update({images}).eq('id',dealId);
+  closeModal('modal-link');currentDealTab='images';await renderDealDetail(dealId);
+}
+async function deleteImage(dealId,index){
+  if(!confirm('Remove this image?'))return;
+  const {data:deal}=await sb.from('deals').select('images').eq('id',dealId).single();
+  const images=(deal.images||[]).filter((_,i)=>i!==index);
+  await sb.from('deals').update({images}).eq('id',dealId);
+  await renderDealDetail(dealId);
+}
+
+// ── LINKS TAB ─────────────────────────────────────
+function renderLinks(deal){
+  const links=deal.links||[];
+  return`
+    <div class="section-hd"><div class="section-label">External Links</div><button class="btn btn-ghost btn-sm" onclick="openAddLink(${deal.id})">+ Add Link</button></div>
+    <div class="card" style="padding:4px 22px">
+      ${links.length===0?'<div class="empty" style="padding:32px"><p>Link to Google Drive, Dropbox, contracts, permits, lender docs, etc.</p></div>':
+        links.map((l,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)">
+          <div style="width:32px;height:32px;border-radius:8px;background:var(--bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0">🔗</div>
+          <div style="flex:1"><div style="font-weight:500;font-size:13.5px">${l.label||'Link '+(i+1)}</div><a href="${l.url}" target="_blank" style="font-size:12px;color:var(--mint-text)">${l.url}</a></div>
+          <button class="btn btn-ghost btn-xs" onclick="deleteLink(${deal.id},${i})">×</button>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ── TASKS PAGE ────────────────────────────────────
+let taskDealFilter='all';
+
+async function renderTasks(){
+  const [{data:tasks},{data:deals}]=await Promise.all([
+    sb.from('tasks').select('*, deals(name,id)').order('due_date'),
+    sb.from('deals').select('id,name').order('name')
+  ]);
+  allTasks=tasks||[];
+  const openCount=allTasks.filter(t=>t.status!=='Done').length;
+  const overdueCount=allTasks.filter(t=>isOverdue(t.due_date,t.status)).length;
+  document.getElementById('main-content').innerHTML=`
+    <div class="page-header">
+      <div>
+        <div class="page-title">Tasks</div>
+        <div class="page-sub">${openCount} open · ${overdueCount>0?`<span style="color:var(--danger)">${overdueCount} overdue</span>`:'0 overdue'}</div>
+      </div>
+      <div class="toolbar">
+        <div class="search-wrap"><span class="search-icon">⌕</span><input class="search-input" id="task-search" placeholder="Search tasks..." oninput="applyTaskFilters()"></div>
+        <button class="btn btn-primary" onclick="openNewTaskFromTasksPage()">+ New Task</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <div style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-start">
+        <div>
+          <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px">Status</div>
+          <div class="filter-bar" style="margin-bottom:0">
+            <div class="filter-btn ${taskFilter==='all'?'active':''}" onclick="setFilter('all',event)">All</div>
+            <div class="filter-btn ${taskFilter==='mine'?'active':''}" onclick="setFilter('mine',event)">Mine</div>
+            <div class="filter-btn ${taskFilter==='overdue'?'active':''}" onclick="setFilter('overdue',event)" style="${taskFilter==='overdue'?'':''}">Overdue</div>
+            <div class="filter-btn ${taskFilter==='open'?'active':''}" onclick="setFilter('open',event)">Open</div>
+            <div class="filter-btn ${taskFilter==='inprogress'?'active':''}" onclick="setFilter('inprogress',event)">In Progress</div>
+            <div class="filter-btn ${taskFilter==='done'?'active':''}" onclick="setFilter('done',event)">Done</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px">Person</div>
+          <div class="filter-bar" style="margin-bottom:0">
+            ${allUsers.map(u=>`<div class="filter-btn ${taskFilter===u.auth_id?'active':''}" onclick="setFilter('${u.auth_id}',event)">${u.name.split(' ')[0]}</div>`).join('')}
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px">Property</div>
+          <div class="filter-bar" style="margin-bottom:0">
+            <div class="filter-btn ${taskDealFilter==='all'?'active':''}" onclick="setDealFilter('all',event)">All</div>
+            ${(deals||[]).map(d=>`<div class="filter-btn ${taskDealFilter==d.id?'active':''}" onclick="setDealFilter('${d.id}',event)">${d.name}</div>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div id="tasks-wrap">${renderTasksGrouped(allTasks)}</div>
+    </div>`;
+}
+
+function renderTasksGrouped(tasks){
+  let f=tasks;
+  if(taskFilter==='mine')f=tasks.filter(t=>t.assigned_to===currentUser.id);
+  else if(taskFilter==='overdue')f=tasks.filter(t=>isOverdue(t.due_date,t.status));
+  else if(taskFilter==='open')f=tasks.filter(t=>t.status==='Open');
+  else if(taskFilter==='inprogress')f=tasks.filter(t=>t.status==='In Progress');
+  else if(taskFilter==='done')f=tasks.filter(t=>t.status==='Done');
+  else if(allUsers.find(u=>u.auth_id===taskFilter))f=tasks.filter(t=>t.assigned_to===taskFilter);
+  if(taskDealFilter!=='all')f=f.filter(t=>String(t.deal_id)===String(taskDealFilter));
+  if(f.length===0)return'<div class="empty"><div class="empty-icon">✓</div><p>No tasks match these filters.</p></div>';
+
+  const groups={};
+  f.forEach(t=>{
+    const key=t.deal_id||'none';
+    const name=t.deals?.name||'No Deal';
+    const dealId=t.deals?.id||null;
+    if(!groups[key])groups[key]={name,dealId,tasks:[]};
+    groups[key].tasks.push(t);
+  });
+
+  const statusRow=(t)=>{
+    const done=t.status==='Done';
+    const overdue=isOverdue(t.due_date,t.status);
+    const inprog=t.status==='In Progress';
+    let rowBg='';
+    if(done)rowBg='background:var(--success-bg)';
+    else if(overdue)rowBg='background:var(--danger-bg)';
+    else if(inprog)rowBg='background:var(--warning-bg)';
+    return rowBg;
+  };
+
+  return Object.values(groups).sort((a,b)=>a.name.localeCompare(b.name)).map(g=>{
+    const overdueInGroup=g.tasks.filter(t=>isOverdue(t.due_date,t.status)).length;
+    const doneInGroup=g.tasks.filter(t=>t.status==='Done').length;
+    return`
+    <div style="margin-bottom:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm) var(--radius-sm) 0 0;border-bottom:none">
+        <div style="font-size:13px;font-weight:600;color:var(--text);cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--border-strong)" onclick="navigateTo('deal-detail','${g.dealId}')">${g.name} ↗</div>
+        <div style="font-size:11px;color:var(--text-3)">${g.tasks.length} task${g.tasks.length!==1?'s':''}</div>
+        ${overdueInGroup>0?`<span class="badge badge-overdue">${overdueInGroup} overdue</span>`:''}
+        ${doneInGroup>0?`<span class="badge badge-done">${doneInGroup} done</span>`:''}
+        <div style="margin-left:auto"><button class="btn btn-ghost btn-xs" onclick="openNewTask(${g.dealId})">+ Add Task</button></div>
+      </div>
+      <div class="table-wrap" style="border-radius:0 0 var(--radius) var(--radius)">
+        <table>
+          <thead><tr><th>Task</th><th>Assigned To</th><th>Due</th><th>Status</th><th>Created By</th><th>Actions</th></tr></thead>
+          <tbody>
+            ${g.tasks.map(t=>`<tr data-t="${(t.title||'').toLowerCase()}" style="${statusRow(t)}">
+              <td style="font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.title}</td>
+              <td style="font-size:12px">${userName(t.assigned_to)}</td>
+              <td style="font-family:var(--mono);font-size:12px;${isOverdue(t.due_date,t.status)?'color:var(--danger);font-weight:600':''}">${fmtDate(t.due_date)}</td>
+              <td>${taskBadge(t.status,t.due_date)}</td>
+              <td class="watermark"><b>${userName(t.created_by)}</b></td>
+              <td><div style="display:flex;gap:5px">
+                ${t.status!=='Done'?`<button class="btn btn-mint btn-sm" onclick="markTaskDone(${t.id},null)">Done</button>`:''}
+                <button class="btn btn-ghost btn-sm" onclick="editTask(${t.id},${t.deal_id})">Edit</button>
+                <button class="btn btn-ghost btn-sm" onclick="deleteTask(${t.id})">×</button>
+              </div></td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openNewTaskFromTasksPage(){
+  // Open task modal with deal picker since we're not inside a deal
+  openModal('modal-task',`<button class="modal-close" onclick="closeModal('modal-task')">×</button>
+    <div class="modal-title">New Task</div>
+    <div class="form-row"><label class="form-label">Property *</label>
+      <select class="form-select" id="t-deal">
+        <option value="">— Select a property —</option>
+        ${allDeals.map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">Task *</label><input class="form-input" id="t-title" placeholder="e.g. Submit permit application"></div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Assign To</label><select class="form-select" id="t-assign">${allUsers.map(u=>`<option value="${u.auth_id}" ${u.auth_id===currentUser.id?'selected':''}>${u.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Due Date</label><input class="form-input" id="t-due" type="date"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Status</label><select class="form-select" id="t-status"><option>Open</option><option>In Progress</option><option>Done</option></select></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancel</button><button class="btn btn-primary" onclick="saveTaskFromTasksPage()">Create Task</button></div>`);
+}
+
+async function saveTaskFromTasksPage(){
+  const dealId=document.getElementById('t-deal').value;
+  if(!dealId)return alert('Please select a property.');
+  await saveTask(Number(dealId),null);
+}
+
+function setFilter(f,e){
+  taskFilter=f;
+  document.querySelectorAll('.filter-bar .filter-btn').forEach(b=>b.classList.remove('active'));
+  if(e?.target)e.target.classList.add('active');
+  document.getElementById('tasks-wrap').innerHTML=renderTasksGrouped(allTasks);
+}
+function setDealFilter(f,e){
+  taskDealFilter=f;
+  document.querySelectorAll('.filter-bar .filter-btn').forEach(b=>{if(b.textContent==='All'||allDeals.find(d=>d.name===b.textContent))b.classList.remove('active');});
+  if(e?.target)e.target.classList.add('active');
+  document.getElementById('tasks-wrap').innerHTML=renderTasksGrouped(allTasks);
+}
+function applyTaskFilters(){
+  const q=document.getElementById('task-search').value.toLowerCase();
+  document.querySelectorAll('#tasks-wrap [data-t]').forEach(tr=>tr.style.display=tr.dataset.t.includes(q)?'':'none');
+}
+
+// ── SETTINGS ──────────────────────────────────────
+async function renderSettings(){
+  document.getElementById('main-content').innerHTML=`
+    <div class="page-header">
+      <div><div class="page-title">Settings</div><div class="page-sub">Team & configuration</div></div>
+    </div>
+    <div class="page-content" style="max-width:620px">
+
+      <div class="card" style="padding:20px 22px;margin-bottom:20px">
+        <div class="section-hd" style="margin-bottom:16px">
+          <div class="section-label">Team Members</div>
+          <button class="btn btn-primary btn-sm" onclick="openAddMember()">+ Add Member</button>
+        </div>
+        <div id="users-list"><div class="loading" style="padding:20px"><div class="spinner"></div></div></div>
+      </div>
+
+      <div class="card" style="padding:20px 22px;margin-bottom:20px">
+        <div class="section-label" style="margin-bottom:12px">How to add a new person</div>
+        <ol style="font-size:13px;color:var(--text-2);line-height:2;padding-left:18px">
+          <li>Click <strong>+ Add Member</strong> above to create their account</li>
+          <li>They'll receive a login email from Supabase — have them check their inbox</li>
+          <li>They can then log in at this site with their email and the temporary password you set</li>
+          <li>They should change their password after first login via <strong>Settings → Change Password</strong></li>
+        </ol>
+      </div>
+
+      <div class="card" style="padding:20px 22px">
+        <div class="section-label" style="margin-bottom:12px">Change My Password</div>
+        <div class="form-row"><label class="form-label">New Password</label><input class="form-input" id="new-pw" type="password" placeholder="••••••••"></div>
+        <div class="form-row"><label class="form-label">Confirm Password</label><input class="form-input" id="confirm-pw" type="password" placeholder="••••••••"></div>
+        <div id="pw-msg" style="font-size:12px;margin-top:4px"></div>
+        <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="changePassword()">Update Password</button></div>
+      </div>
+
+    </div>`;
+  await loadSettingsUsers();
+}
+
+async function loadSettingsUsers(){
+  const {data:users}=await sb.from('users').select('*').order('name');
+  const el=document.getElementById('users-list');if(!el)return;
+  el.innerHTML=(users||[]).map(u=>`
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div class="user-av" style="width:32px;height:32px;font-size:12px">${u.name.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
+      <div style="flex:1">
+        <div style="font-weight:500;font-size:13.5px">${u.name}</div>
+        <div style="font-size:12px;color:var(--text-3)">${u.email||''}</div>
+      </div>
+      <select class="form-select" style="width:110px;font-size:12px;padding:4px 8px" onchange="updateUserRole('${u.auth_id}',this.value)">
+        <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+        <option value="member" ${u.role==='member'?'selected':''}>Member</option>
+      </select>
+      <button class="btn btn-ghost btn-xs" onclick="removeMember('${u.auth_id}','${u.name}')" style="color:var(--danger);border-color:var(--danger-border)">Remove</button>
+    </div>`).join('')||'<div style="color:var(--text-3);font-size:13px;padding:12px 0">No users found.</div>';
+}
+
+function openAddMember(){
+  openModal('modal-deal',`
+    <button class="modal-close" onclick="closeModal('modal-deal')">×</button>
+    <div class="modal-title">Add Team Member</div>
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:18px;line-height:1.6;background:var(--bg);padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border)">
+      This creates a login for them. They'll need to log in with this email and the temporary password you set here.
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">First Name *</label><input class="form-input" id="new-fname" placeholder="e.g. Sarah"></div>
+      <div class="form-row"><label class="form-label">Last Name</label><input class="form-input" id="new-lname" placeholder="e.g. Johnson"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Email *</label><input class="form-input" id="new-email" type="email" placeholder="sarah@b3dev.com"></div>
+    <div class="form-row"><label class="form-label">Temporary Password *</label><input class="form-input" id="new-temp-pw" type="password" placeholder="Min 6 characters"></div>
+    <div class="form-row"><label class="form-label">Role</label>
+      <select class="form-select" id="new-role">
+        <option value="admin">Admin — full access</option>
+        <option value="member">Member — full access, shown separately in filters</option>
+      </select>
+    </div>
+    <div id="add-member-msg" style="font-size:12px;margin-top:4px"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-deal')">Cancel</button>
+      <button class="btn btn-primary" id="add-member-btn" onclick="addMember()">Create Account</button>
+    </div>`);
+}
+
+async function addMember(){
+  const fname=document.getElementById('new-fname').value.trim();
+  const lname=document.getElementById('new-lname').value.trim();
+  const email=document.getElementById('new-email').value.trim();
+  const pw=document.getElementById('new-temp-pw').value;
+  const role=document.getElementById('new-role').value;
+  const msg=document.getElementById('add-member-msg');
+  const btn=document.getElementById('add-member-btn');
+  if(!fname||!email||!pw){msg.style.color='var(--danger)';msg.textContent='Name, email, and password are required.';return;}
+  if(pw.length<6){msg.style.color='var(--danger)';msg.textContent='Password must be at least 6 characters.';return;}
+  btn.textContent='Creating...';btn.disabled=true;
+  const name=lname?`${fname} ${lname}`:fname;
+  try{
+    // Create auth user via Supabase admin signup
+    const {data:authData,error:authErr}=await sb.auth.signUp({email,password:pw});
+    if(authErr)throw authErr;
+    const authId=authData?.user?.id;
+    if(!authId)throw new Error('No user ID returned');
+    // Insert into users table
+    await sb.from('users').insert({auth_id:authId,name,email,role});
+    closeModal('modal-deal');
+    msg.textContent='';
+    await renderSettings();
+  }catch(err){
+    btn.textContent='Create Account';btn.disabled=false;
+    msg.style.color='var(--danger)';
+    msg.textContent=err.message||'Something went wrong.';
+  }
+}
+
+async function updateUserRole(authId, role){
+  await sb.from('users').update({role}).eq('auth_id',authId);
+  // Refresh list silently
+  await loadSettingsUsers();
+}
+
+async function removeMember(authId, name){
+  if(!confirm(`Remove ${name} from b3? They will no longer be able to log in.`))return;
+  await sb.from('users').delete().eq('auth_id',authId);
+  await loadSettingsUsers();
+}
+
+async function changePassword(){
+  const pw=document.getElementById('new-pw').value;
+  const confirm=document.getElementById('confirm-pw').value;
+  const msg=document.getElementById('pw-msg');
+  if(!pw||pw.length<6){msg.style.color='var(--danger)';msg.textContent='Password must be at least 6 characters.';return;}
+  if(pw!==confirm){msg.style.color='var(--danger)';msg.textContent='Passwords do not match.';return;}
+  const {error}=await sb.auth.updateUser({password:pw});
+  if(error){msg.style.color='var(--danger)';msg.textContent=error.message;}
+  else{msg.style.color='var(--success)';msg.textContent='Password updated successfully.';}
+  document.getElementById('new-pw').value='';
+  document.getElementById('confirm-pw').value='';
+}
+
+
+
+// ── MODAL: DEAL ───────────────────────────────────
+function dealFormHTML(deal={}){
+  const phases=['Prospecting','Under Contract','Active','Construction','Lease-up','Stabilized','Exited','On Hold','Dead'];
+  const types=['Multifamily','Mixed-Use','Commercial','Industrial','Land','Retail','Office','Other'];
+  return`
+    <button class="modal-close" onclick="closeModal('modal-deal')">×</button>
+    <div class="modal-title">${deal.id?'Edit Deal':'New Deal'}</div>
+    <div class="form-row"><label class="form-label">Deal Name *</label><input class="form-input" id="d-name" value="${deal.name||''}"></div>
+    <div class="form-row"><label class="form-label">Address</label><input class="form-input" id="d-address" value="${deal.address||''}"></div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Type</label><select class="form-select" id="d-type">${types.map(t=>`<option ${deal.type===t?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Phase</label><select class="form-select" id="d-phase">${phases.map(p=>`<option ${deal.phase===p?'selected':''}>${p}</option>`).join('')}</select></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label"># of Units</label><input class="form-input" id="d-units" type="number" value="${deal.num_units||''}"></div>
+      <div class="form-row"><label class="form-label">Site Improvements ($)</label><input class="form-input" id="d-site" type="number" value="${deal.site_improvements||''}"></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Acquisition Price</label><input class="form-input" id="d-acq" type="number" value="${deal.acquisition_price||''}"></div>
+      <div class="form-row"><label class="form-label">Total Cost</label><input class="form-input" id="d-cost" type="number" value="${deal.total_cost||''}"></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Close Date</label><input class="form-input" id="d-close" type="date" value="${deal.close_date||''}"></div>
+      <div class="form-row"><label class="form-label">Target Exit</label><input class="form-input" id="d-exit" type="date" value="${deal.target_exit_date||''}"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="d-notes">${deal.notes||''}</textarea></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-deal')">Cancel</button><button class="btn btn-primary" onclick="saveDeal(${deal.id||'null'})">${deal.id?'Save Changes':'Create Deal'}</button></div>`;
+}
+function openNewDeal(){openModal('modal-deal',dealFormHTML());}
+function openEditDeal(id){openModal('modal-deal',dealFormHTML(allDeals.find(d=>d.id==id)||{}));}
+async function saveDeal(id){
+  const data={name:document.getElementById('d-name').value.trim(),address:document.getElementById('d-address').value.trim(),type:document.getElementById('d-type').value,phase:document.getElementById('d-phase').value,num_units:document.getElementById('d-units').value||null,site_improvements:document.getElementById('d-site').value||null,acquisition_price:document.getElementById('d-acq').value||null,total_cost:document.getElementById('d-cost').value||null,close_date:document.getElementById('d-close').value||null,target_exit_date:document.getElementById('d-exit').value||null,notes:document.getElementById('d-notes').value.trim(),created_by:currentUser.id};
+  if(!data.name)return alert('Deal name is required.');
+  if(id){await sb.from('deals').update(data).eq('id',id);cacheInvalidate('deals','deal-'+id);closeModal('modal-deal');await renderDealDetail(id);}
+  else{const{data:nd}=await sb.from('deals').insert(data).select().single();cacheInvalidate('deals');closeModal('modal-deal');await navigateTo('deal-detail',nd.id);}
+}
+
+// ── MODAL: TASK ───────────────────────────────────
+function openTaskModal(dealId, task=null){
+  const t=task||{};
+  openModal('modal-task',`<button class="modal-close" onclick="closeModal('modal-task')">×</button>
+    <div class="modal-title">${t.id?'Edit Task':'New Task'}</div>
+    <div class="form-row"><label class="form-label">Task *</label><input class="form-input" id="t-title" value="${t.title||''}" placeholder="e.g. Submit permit application"></div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Assign To *</label><select class="form-select" id="t-assign">${allUsers.map(u=>`<option value="${u.auth_id}" ${(t.assigned_to||currentUser.id)===u.auth_id?'selected':''}>${u.name}</option>`).join('')}</select></div>
+      <div class="form-row"><label class="form-label">Due Date</label><input class="form-input" id="t-due" type="date" value="${t.due_date||''}"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Status</label><select class="form-select" id="t-status">
+      ${['Open','In Progress','Done'].map(s=>`<option ${(t.status||'Open')===s?'selected':''}>${s}</option>`).join('')}
+    </select></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-task')">Cancel</button><button class="btn btn-primary" onclick="saveTask(${dealId},${t.id||'null'})">${t.id?'Save Changes':'Create Task'}</button></div>`);
+}
+function openNewTask(dealId){openTaskModal(dealId);}
+function editTask(taskId,dealId){
+  const t=allTasks.find(x=>x.id===taskId);
+  if(t)openTaskModal(dealId,t);
+}
+async function saveTask(dealId,id=null){
+  const data={deal_id:dealId,title:document.getElementById('t-title').value.trim(),assigned_to:document.getElementById('t-assign').value||null,due_date:document.getElementById('t-due').value||null,status:document.getElementById('t-status').value};
+  if(!data.title)return alert('Title required.');
+  if(id){await sb.from('tasks').update(data).eq('id',id);}
+  else{data.created_by=currentUser.id;await sb.from('tasks').insert(data);}
+  cacheInvalidate('tasks','deal-'+dealId);closeModal('modal-task');
+  if(currentPage==='tasks')await renderTasks();else await renderDealDetail(dealId);
+}
+async function markTaskDone(id,dealId){
+  await sb.from('tasks').update({status:'Done'}).eq('id',id);cacheInvalidate('tasks','deal-'+dealId);
+  if(currentPage==='tasks')await renderTasks();else if(dealId)await renderDealDetail(dealId);
+}
+async function deleteTask(id){
+  if(!confirm('Delete this task?'))return;
+  await sb.from('tasks').delete().eq('id',id);cacheInvalidate('tasks','deal-'+currentDealId);
+  if(currentPage==='tasks')await renderTasks();else await renderDealDetail(currentDealId);
+}
+
+// ── MODAL: MILESTONE ──────────────────────────────
+async function openMilestoneModal(dealId,id=null){
+  let m={};
+  if(id){const {data}=await sb.from('milestones').select('*').eq('id',id).single();m=data||{};}
+  openModal('modal-milestone',`<button class="modal-close" onclick="closeModal('modal-milestone')">×</button>
+    <div class="modal-title">${id?'Edit Milestone':'New Milestone'}</div>
+    <div class="form-row"><label class="form-label">Title *</label><input class="form-input" id="m-title" value="${m.title||''}" placeholder="e.g. Close construction loan"></div>
+    <div class="form-row"><label class="form-label">Target Date</label><input class="form-input" id="m-date" type="date" value="${m.target_date||''}"></div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="m-notes">${m.notes||''}</textarea></div>
+    <div class="form-row"><label class="form-label">Links (one per line)</label><textarea class="form-textarea" id="m-links">${(m.links||[]).join('\n')}</textarea></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-milestone')">Cancel</button><button class="btn btn-primary" onclick="saveMilestone(${dealId},${id||'null'})">${id?'Save Changes':'Add Milestone'}</button></div>`);
+}
+function openNewMilestone(dealId){openMilestoneModal(dealId);}
+async function saveMilestone(dealId,id=null){
+  const links=document.getElementById('m-links').value.trim().split('\n').map(l=>l.trim()).filter(Boolean);
+  const data={deal_id:dealId,title:document.getElementById('m-title').value.trim(),target_date:document.getElementById('m-date').value||null,notes:document.getElementById('m-notes').value.trim(),links};
+  if(!data.title)return alert('Title required.');
+  if(id){await sb.from('milestones').update(data).eq('id',id);}
+  else{data.completed=false;await sb.from('milestones').insert(data);}
+  cacheInvalidate('deal-'+dealId);closeModal('modal-milestone');await renderDealDetail(dealId);
+}
+async function toggleMilestone(id,completed,dealId){await sb.from('milestones').update({completed,completed_date:completed?today():null}).eq('id',id);cacheInvalidate('deal-'+dealId);await renderDealDetail(dealId);}
+async function deleteMilestone(id,dealId){if(!confirm('Delete?'))return;await sb.from('milestones').delete().eq('id',id);cacheInvalidate('deal-'+dealId);await renderDealDetail(dealId);}
+
+// ── MODAL: CAPITAL ────────────────────────────────
+// ── CUSTOM OPTIONS SYSTEM ────────────────────────
+// Stores custom dropdown options per field type globally
+const _customOpts = {}; // in-memory cache: { 'payment_category': ['Custom A', ...] }
+
+async function getOpts(fieldType, defaults){
+  if(_customOpts[fieldType]) return [...defaults, ..._customOpts[fieldType]];
+  const {data} = await sb.from('custom_options').select('value').eq('field_type', fieldType).order('value');
+  _customOpts[fieldType] = (data||[]).map(r=>r.value);
+  return [...defaults, ..._customOpts[fieldType]];
+}
+
+async function saveCustomOpt(fieldType, value){
+  const v = value.trim();
+  if(!v) return;
+  // Don't save if it already exists
+  const existing = _customOpts[fieldType]||[];
+  if(existing.includes(v)) return;
+  await sb.from('custom_options').upsert({field_type:fieldType, value:v}, {onConflict:'field_type,value'});
+  _customOpts[fieldType] = [...existing, v]; // update in-memory cache
+}
+
+function buildSelect(id, options, selected='', onChange=''){
+  const opts = options.map(o => {
+    const isOther = o === 'Other (Specify)';
+    return `<option value="${o}" ${selected===o?'selected':''}>${o}</option>`;
+  });
+  return `<select class="form-select" id="${id}" onchange="${onChange}">${opts.join('')}</select>`;
+}
+
+function otherSpecifyHTML(selectId, specifyId, show=false){
+  return `<div id="${specifyId}-wrap" style="margin-top:8px;${show?'':'display:none'}">
+    <input class="form-input" id="${specifyId}" placeholder="Specify..." style="font-size:13px">
+  </div>`;
+}
+
+function handleOtherChange(selectId, specifyId){
+  const sel = document.getElementById(selectId);
+  const wrap = document.getElementById(specifyId+'-wrap');
+  if(wrap) wrap.style.display = sel.value === 'Other (Specify)' ? '' : 'none';
+}
+
+async function resolveOtherValue(selectId, specifyId, fieldType){
+  const sel = document.getElementById(selectId);
+  if(sel.value !== 'Other (Specify)') return sel.value;
+  const custom = document.getElementById(specifyId)?.value?.trim();
+  if(!custom) { alert('Please specify a value.'); return null; }
+  await saveCustomOpt(fieldType, custom);
+  return custom;
+}
+
+// ── MODAL: CAPITAL ────────────────────────────────
+async function openCapitalModal(dealId,id=null){
+  const defaultTiers=['Senior Debt','Mezzanine','Preferred Equity','LP Equity','GP Equity','Other (Specify)'];
+  const tiers = await getOpts('capital_tier', defaultTiers);
+  let r={};
+  if(id){const {data}=await sb.from('capital_stack').select('*').eq('id',id).single();r=data||{};}
+  const selTier = r.tier && !tiers.includes(r.tier) ? r.tier : (r.tier||'');
+  const allTiers = r.tier && !tiers.includes(r.tier) ? [...tiers.slice(0,-1), r.tier, 'Other (Specify)'] : tiers;
+  openModal('modal-capital',`<button class="modal-close" onclick="closeModal('modal-capital')">×</button>
+    <div class="modal-title">${id?'Edit Stack Entry':'Add to Capital Stack'}</div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Tier *</label>
+        ${buildSelect('c-tier', allTiers, selTier, "handleOtherChange('c-tier','c-tier-other')")}
+        ${otherSpecifyHTML('c-tier','c-tier-other')}
+      </div>
+      <div class="form-row"><label class="form-label">Party / Lender</label><input class="form-input" id="c-party" value="${r.party||''}" placeholder="e.g. First National Bank"></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Amount *</label><input class="form-input" id="c-amount" type="number" value="${r.amount||''}"></div>
+      <div class="form-row"><label class="form-label">Rate (e.g. 0.08 = 8%)</label><input class="form-input" id="c-rate" type="number" step="0.0001" value="${r.rate||''}" placeholder="0.0800"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Promote % (optional)</label><input class="form-input" id="c-promote" type="number" step="0.1" value="${r.promote_pct||''}" placeholder="e.g. 20 for 20%"></div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="c-notes">${r.notes||''}</textarea></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-capital')">Cancel</button><button class="btn btn-primary" onclick="saveCapital(${dealId},${id||'null'})">${id?'Save Changes':'Add to Stack'}</button></div>`);
+}
+function openNewCapital(dealId){openCapitalModal(dealId);}
+async function saveCapital(dealId,id=null){
+  const tier = await resolveOtherValue('c-tier','c-tier-other','capital_tier');
+  if(!tier) return;
+  const data={deal_id:dealId,tier,party:document.getElementById('c-party').value.trim(),amount:document.getElementById('c-amount').value||null,rate:document.getElementById('c-rate').value||null,promote_pct:document.getElementById('c-promote').value||null,notes:document.getElementById('c-notes').value.trim()};
+  if(!data.amount)return alert('Amount required.');
+  if(id){await sb.from('capital_stack').update(data).eq('id',id);}
+  else{await sb.from('capital_stack').insert(data);}
+  cacheInvalidate('deal-'+dealId);closeModal('modal-capital');await renderDealDetail(dealId);
+}
+async function deleteCapital(id,dealId){if(!confirm('Remove?'))return;await sb.from('capital_stack').delete().eq('id',id);cacheInvalidate('deal-'+dealId);await renderDealDetail(dealId);}
+
+// ── MODAL: PAYMENT ────────────────────────────────
+async function openPaymentModal(dealId,id=null){
+  const defaultCats=['Construction Draw','Debt Service','Equity Distribution','Acquisition','Fee','Tax','Insurance','Permit','Legal','Other (Specify)'];
+  const cats = await getOpts('payment_category', defaultCats);
+  const {data:suLines}=await sb.from('sources_uses').select('id,label').eq('deal_id',dealId).eq('section','use').order('label');
+  let p={};
+  if(id){const {data}=await sb.from('payments').select('*').eq('id',id).single();p=data||{};}
+  const selCat = p.category && !cats.includes(p.category) ? p.category : (p.category||'');
+  const allCats = p.category && !cats.includes(p.category) ? [...cats.slice(0,-1), p.category, 'Other (Specify)'] : cats;
+  openModal('modal-payment',`<button class="modal-close" onclick="closeModal('modal-payment')">×</button>
+    <div class="modal-title">${id?'Edit Payment':'Log Payment'}</div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Direction *</label><select class="form-select" id="p-dir">
+        <option ${(p.direction||'Outgoing')==='Outgoing'?'selected':''}>Outgoing</option>
+        <option ${p.direction==='Incoming'?'selected':''}>Incoming</option>
+      </select></div>
+      <div class="form-row"><label class="form-label">Date *</label><input class="form-input" id="p-date" type="date" value="${p.pay_date||today()}"></div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Category</label>
+        ${buildSelect('p-cat', allCats, selCat, "handleOtherChange('p-cat','p-cat-other')")}
+        ${otherSpecifyHTML('p-cat','p-cat-other')}
+      </div>
+      <div class="form-row"><label class="form-label">Amount *</label><input class="form-input" id="p-amount" type="number" value="${p.amount||''}"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Party</label><input class="form-input" id="p-party" value="${p.party||''}" placeholder="e.g. General Contractor"></div>
+    <div class="form-row" style="background:var(--mint-light);border:1px solid var(--mint-mid);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px">
+      <label class="form-label" style="color:var(--mint-text)">Link to Uses Line for progress tracking</label>
+      <select class="form-select" id="p-su">
+        <option value="">— None (won't count toward S&U progress) —</option>
+        ${(suLines||[]).map(s=>`<option value="${s.id}" ${String(p.su_id)===String(s.id)?'selected':''}>${s.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Type</label><select class="form-select" id="p-sched">
+        <option value="false" ${!p.scheduled?'selected':''}>Actual payment</option>
+        <option value="true" ${p.scheduled?'selected':''}>Scheduled / future</option>
+      </select></div>
+      <div class="form-row"><label class="form-label">Paid?</label><select class="form-select" id="p-paid">
+        <option value="true" ${p.paid!==false?'selected':''}>Yes — paid</option>
+        <option value="false" ${p.paid===false?'selected':''}>No — pending</option>
+      </select></div>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="p-notes">${p.notes||''}</textarea></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-payment')">Cancel</button><button class="btn btn-primary" onclick="savePayment(${dealId},${id||'null'})">${id?'Save Changes':'Log Payment'}</button></div>`);
+}
+async function openNewPayment(dealId){openPaymentModal(dealId);}
+async function savePayment(dealId,id=null){
+  const category = await resolveOtherValue('p-cat','p-cat-other','payment_category');
+  if(!category) return;
+  const suVal=document.getElementById('p-su').value;
+  const data={deal_id:dealId,direction:document.getElementById('p-dir').value,pay_date:document.getElementById('p-date').value||null,category,amount:document.getElementById('p-amount').value||null,party:document.getElementById('p-party').value.trim(),su_id:suVal?Number(suVal):null,scheduled:document.getElementById('p-sched').value==='true',paid:document.getElementById('p-paid').value==='true',notes:document.getElementById('p-notes').value.trim()};
+  if(!data.amount)return alert('Amount required.');
+  if(id){await sb.from('payments').update(data).eq('id',id);}
+  else{data.created_by=currentUser.id;await sb.from('payments').insert(data);}
+  cacheInvalidate('deal-'+dealId);closeModal('modal-payment');await renderDealDetail(dealId);
+}
+async function deletePayment(id,dealId){if(!confirm('Delete?'))return;await sb.from('payments').delete().eq('id',id);cacheInvalidate('deal-'+dealId);await renderDealDetail(dealId);}
+
+// ── MODAL: CONTACT ────────────────────────────────
+async function openContactModal(dealId,id=null){
+  const defaultRoles=['Attorney','General Contractor','Architect','Property Manager','Lender','Broker','Engineer','Accountant','Other (Specify)'];
+  const roles = await getOpts('contact_role', defaultRoles);
+  let c={};
+  if(id){const {data}=await sb.from('contacts').select('*').eq('id',id).single();c=data||{};}
+  const selRole = c.role && !roles.includes(c.role) ? c.role : (c.role||'');
+  const allRoles = c.role && !roles.includes(c.role) ? [...roles.slice(0,-1), c.role, 'Other (Specify)'] : roles;
+  openModal('modal-contact',`<button class="modal-close" onclick="closeModal('modal-contact')">×</button>
+    <div class="modal-title">${id?'Edit Contact':'Add Contact'}</div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Name *</label><input class="form-input" id="co-name" value="${c.name||''}" placeholder="Full name"></div>
+      <div class="form-row"><label class="form-label">Role *</label>
+        ${buildSelect('co-role', allRoles, selRole, "handleOtherChange('co-role','co-role-other')")}
+        ${otherSpecifyHTML('co-role','co-role-other')}
+      </div>
+    </div>
+    <div class="form-row"><label class="form-label">Company / Firm</label><input class="form-input" id="co-company" value="${c.company||''}" placeholder="e.g. Smith & Associates LLC"></div>
+    <div class="form-row-2">
+      <div class="form-row"><label class="form-label">Email</label><input class="form-input" id="co-email" type="email" value="${c.email||''}" placeholder="contact@firm.com"></div>
+      <div class="form-row"><label class="form-label">Phone</label><input class="form-input" id="co-phone" value="${c.phone||''}" placeholder="(312) 555-0000"></div>
+    </div>
+    <div class="form-row"><label class="form-label">Notes</label><textarea class="form-textarea" id="co-notes">${c.notes||''}</textarea></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-contact')">Cancel</button><button class="btn btn-primary" onclick="saveContact(${dealId},${id||'null'})">${id?'Save Changes':'Add Contact'}</button></div>`);
+}
+function openNewContact(dealId){openContactModal(dealId);}
+async function saveContact(dealId,id=null){
+  const role = await resolveOtherValue('co-role','co-role-other','contact_role');
+  if(!role) return;
+  const data={deal_id:dealId,name:document.getElementById('co-name').value.trim(),role,company:document.getElementById('co-company').value.trim(),email:document.getElementById('co-email').value.trim(),phone:document.getElementById('co-phone').value.trim(),notes:document.getElementById('co-notes').value.trim()};
+  if(!data.name)return alert('Name required.');
+  if(id){await sb.from('contacts').update(data).eq('id',id);}
+  else{await sb.from('contacts').insert(data);}
+  cacheInvalidate('deal-'+dealId);closeModal('modal-contact');await renderDealDetail(dealId);
+}
+async function deleteContact(id,dealId){if(!confirm('Remove contact?'))return;await sb.from('contacts').delete().eq('id',id);cacheInvalidate('deal-'+dealId);await renderDealDetail(dealId);}
+
+// ── MODAL: SOURCES & USES ─────────────────────────
+async function openSUModal(dealId,section,id=null){
+  const budgetCats=[['pursuit','Pursuit Costs'],['hard','Hard Costs'],['soft','Soft Costs'],['financing','Financing Costs'],['contingency','Contingency'],['other','Other']];
+  let r={};
+  if(id){const {data}=await sb.from('sources_uses').select('*').eq('id',id).single();r=data||{};}
+  const sec=r.section||section;
+  const isUse=sec==='use';
+  openModal('modal-su',`<button class="modal-close" onclick="closeModal('modal-su')">×</button>
+    <div class="modal-title">${id?'Edit Budget Line':isUse?'Add Budget Line':'Add Capital Source'}</div>
+    <div class="form-row"><label class="form-label">Label *</label><input class="form-input" id="su-label" value="${r.label||''}" placeholder="${isUse?'e.g. Foundation Work, Architecture Fees':'e.g. Construction Loan, GP Equity'}"></div>
+    <div class="form-row"><label class="form-label">Budgeted Amount *</label><input class="form-input" id="su-amount" type="number" value="${r.amount||''}" placeholder="0"></div>
+    ${isUse?`
+    <div class="form-row"><label class="form-label">Category</label>
+      <select class="form-select" id="su-cat">
+        ${budgetCats.map(([val,label])=>`<option value="${val}" ${(r.category||'hard')===val?'selected':''}>${label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row"><label class="form-label">Notes (optional)</label><textarea class="form-textarea" id="su-notes" style="min-height:56px">${r.notes||''}</textarea></div>
+    `:`<input type="hidden" id="su-cat" value="source"><div style="display:none"><textarea id="su-notes"></textarea></div>`}
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-su')">Cancel</button><button class="btn btn-primary" onclick="saveSU(${dealId},'${sec}',${id||'null'})">${id?'Save Changes':isUse?'Add to Budget':'Add Source'}</button></div>`);
+}
+function openNewSU(dealId,section){openSUModal(dealId,section);}
+async function saveSU(dealId,section,id=null){
+  const data={deal_id:dealId,section,label:document.getElementById('su-label').value.trim(),amount:document.getElementById('su-amount').value||null,category:document.getElementById('su-cat').value,notes:document.getElementById('su-notes')?.value?.trim()||null,sort_order:0};
+  if(!data.label||!data.amount)return alert('Label and amount required.');
+  if(id){await sb.from('sources_uses').update(data).eq('id',id);}
+  else{await sb.from('sources_uses').insert(data);}
+  cacheInvalidate('deal-'+dealId);closeModal('modal-su');await renderDealDetail(dealId);
+}
+async function deleteSU(id,dealId){if(!confirm('Remove this line?'))return;await sb.from('sources_uses').delete().eq('id',id);cacheInvalidate('deal-'+dealId);await renderDealDetail(dealId);}
+
+// ── LINKS ─────────────────────────────────────────
+function openAddLink(dealId){
+  openModal('modal-link',`<button class="modal-close" onclick="closeModal('modal-link')">×</button>
+    <div class="modal-title">Add Link</div>
+    <div class="form-row"><label class="form-label">Label</label><input class="form-input" id="l-label" placeholder="e.g. Google Drive, LOI, Permits"></div>
+    <div class="form-row"><label class="form-label">URL *</label><input class="form-input" id="l-url" placeholder="https://..."></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal('modal-link')">Cancel</button><button class="btn btn-primary" onclick="saveLink(${dealId})">Add Link</button></div>`);
+}
+async function saveLink(dealId){
+  const url=document.getElementById('l-url').value.trim();if(!url)return alert('URL required.');
+  const{data:deal}=await sb.from('deals').select('links').eq('id',dealId).single();
+  const links=deal.links||[];links.push({label:document.getElementById('l-label').value.trim()||'Link',url});
+  await sb.from('deals').update({links}).eq('id',dealId);closeModal('modal-link');await renderDealDetail(dealId);
+}
+async function deleteLink(dealId,index){
+  if(!confirm('Remove?'))return;
+  const{data:deal}=await sb.from('deals').select('links').eq('id',dealId).single();
+  const links=(deal.links||[]).filter((_,i)=>i!==index);
+  await sb.from('deals').update({links}).eq('id',dealId);await renderDealDetail(dealId);
+}
+
+init();
+</script>
+</body>
+</html>
