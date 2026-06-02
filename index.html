@@ -313,9 +313,10 @@ let currentUser=null,currentUserProfile=null,currentPage='home',currentDealId=nu
 let allDeals=[],allTasks=[],allUsers=[],taskFilter='all';
 
 // ── FETCH HELPERS ────────────────────────────────
-function cacheInvalidate(...keys){ /* no-op — cache removed for reliability */ }
+function cacheInvalidate(...keys){ /* no-op */ }
 async function fetchDeals(){ const {data}=await sb.from('deals').select('*').order('name'); return data||[]; }
-async function fetchTasks(){ const {data}=await sb.from('tasks').select('*'); return data||[]; }
+async function fetchTasks(){ const {data}=await sb.from('tasks').select('*').neq('status','Done'); return data||[]; }
+async function fetchAllTasks(){ const {data}=await sb.from('tasks').select('*'); return data||[]; }
 async function fetchDealDetail(dealId){
   const [d,t,s,m,p,co,su]=await Promise.all([
     sb.from('deals').select('*').eq('id',dealId).single(),
@@ -461,6 +462,8 @@ async function renderHome(){
         ${phaseOrder.filter(p=>phases[p]).map(p=>`<div class="phase-pill" onclick="navigateTo('deals')"><div style="width:8px;height:8px;border-radius:50%;background:${phaseColors[p]};border:1px solid rgba(0,0,0,.1)"></div><span style="color:var(--text-2)">${p}</span><span style="font-weight:700;font-family:var(--mono);font-size:13px">${phases[p]}</span></div>`).join('')}
         ${Object.keys(phases).length===0?'<span style="color:var(--text-3);font-size:13px">No deals yet — run the seed SQL to import your properties</span>':''}
       </div>
+      <div class="section-hd" style="margin-bottom:10px"><div class="section-label">Portfolio Capital Summary</div></div>
+      <div id="capital-summary-strip" style="margin-bottom:24px"><div style="font-size:12px;color:var(--text-3)">Loading...</div></div>
       <div class="section-hd" style="margin-bottom:10px"><div class="section-label">Portfolio Budget Health</div><button class="btn btn-ghost btn-sm" onclick="navigateTo('deals')">View all →</button></div>
       <div id="budget-health-strip" style="margin-bottom:24px">
         <div style="font-size:12px;color:var(--text-3)">Loading budget data...</div>
@@ -486,16 +489,89 @@ async function renderHome(){
       </div>
     </div>`;
   loadBudgetHealthStrip();
+  loadCapitalSummaryStrip();
 }
 
-// ── BUDGET HEALTH STRIP ──────────────────────────
+// ── CAPITAL SUMMARY STRIP ────────────────────────
+async function loadCapitalSummaryStrip(){
+  const el=document.getElementById('capital-summary-strip');
+  if(!el)return;
+  try{
+    const {data:stack}=await sb.from('capital_stack').select('deal_id,tier,amount,party');
+    const {data:su}=await sb.from('sources_uses').select('deal_id,section,amount').eq('section','use');
+    if(!stack||!stack.length){el.innerHTML='<div style="font-size:12px;color:var(--text-3)">No capital stack data yet.</div>';return;}
+
+    const equityTiers=['Preferred Equity','LP Equity','GP Equity'];
+    const debtTiers=['Senior Debt','Mezzanine'];
+
+    // Portfolio totals
+    const totalEquity=stack.filter(r=>equityTiers.includes(r.tier)).reduce((s,r)=>s+Number(r.amount||0),0);
+    const totalDebt=stack.filter(r=>debtTiers.includes(r.tier)).reduce((s,r)=>s+Number(r.amount||0),0);
+    const totalStack=totalEquity+totalDebt;
+    const totalBudget=(su||[]).reduce((s,r)=>s+Number(r.amount||0),0);
+    const equityGap=Math.max(0,totalBudget-totalStack);
+
+    // Per-deal equity breakdown
+    const dealEquity={};
+    stack.filter(r=>equityTiers.includes(r.tier)).forEach(r=>{
+      if(!dealEquity[r.deal_id])dealEquity[r.deal_id]={committed:0,tiers:{}};
+      dealEquity[r.deal_id].committed+=Number(r.amount||0);
+      dealEquity[r.deal_id].tiers[r.tier]=(dealEquity[r.deal_id].tiers[r.tier]||0)+Number(r.amount||0);
+    });
+
+    const tierColors={'Preferred Equity':'#6EBF8B','LP Equity':'#3D9E62','GP Equity':'#1E6B40'};
+
+    const dealCards=allDeals.filter(d=>dealEquity[d.id]).map(d=>{
+      const eq=dealEquity[d.id];
+      const budget=(su||[]).filter(r=>r.deal_id===d.id).reduce((s,r)=>s+Number(r.amount||0),0);
+      const gap=Math.max(0,budget-eq.committed);
+      return`<div class="card" style="padding:12px 16px;min-width:180px;flex:1;cursor:pointer" onclick="navigateTo('deal-detail','${d.id}')">
+        <div style="font-size:12px;font-weight:500;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}</div>
+        <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;margin-bottom:6px;background:var(--bg);border:1px solid var(--border)">
+          ${Object.entries(eq.tiers).map(([tier,amt])=>{
+            const pct=eq.committed>0?(amt/eq.committed*100):0;
+            return`<div style="width:${pct}%;background:${tierColors[tier]||'#888'}" title="${tier}: ${fmt$(amt)}"></div>`;
+          }).join('')}
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px">
+          <span style="color:var(--text-3)">Equity: <span style="font-family:var(--mono);font-weight:500">${fmt$(eq.committed)}</span></span>
+          ${gap>0?`<span style="color:var(--warning)">Gap: ${fmt$(gap)}</span>`:'<span style="color:var(--success)">Funded ✓</span>'}
+        </div>
+      </div>`;
+    }).join('');
+
+    el.innerHTML=`
+      <div class="card" style="padding:16px 18px;margin-bottom:12px">
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:14px">
+          <div><div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Total Equity Committed</div><div style="font-size:18px;font-weight:600;font-family:var(--mono);color:var(--success)">${fmt$(totalEquity)}</div></div>
+          <div><div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Total Debt</div><div style="font-size:18px;font-weight:600;font-family:var(--mono)">${fmt$(totalDebt)}</div></div>
+          <div><div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Total Budgeted</div><div style="font-size:18px;font-weight:600;font-family:var(--mono)">${fmt$(totalBudget)}</div></div>
+          <div><div style="font-size:10px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Equity Gap</div><div style="font-size:18px;font-weight:600;font-family:var(--mono);color:${equityGap>0?'var(--warning)':'var(--success)'}">${equityGap>0?fmt$(equityGap):'None ✓'}</div><div style="font-size:10px;color:var(--text-3);margin-top:2px">Budget minus all capital</div></div>
+        </div>
+        <div style="height:10px;background:var(--bg);border-radius:5px;overflow:hidden;border:1px solid var(--border)">
+          <div style="display:flex;height:100%">
+            <div style="width:${totalStack>0?Math.min((totalDebt/totalStack)*100,100):0}%;background:#0F1117" title="Debt: ${fmt$(totalDebt)}"></div>
+            <div style="width:${totalStack>0?Math.min((totalEquity/totalStack)*100,100):0}%;background:#3D9E62" title="Equity: ${fmt$(totalEquity)}"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--text-2)">
+          <div style="display:flex;align-items:center;gap:5px"><div style="width:8px;height:8px;border-radius:2px;background:#0F1117"></div>Debt ${totalStack>0?((totalDebt/totalStack)*100).toFixed(0)+'%':''}</div>
+          <div style="display:flex;align-items:center;gap:5px"><div style="width:8px;height:8px;border-radius:2px;background:#3D9E62"></div>Equity ${totalStack>0?((totalEquity/totalStack)*100).toFixed(0)+'%':''}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">${dealCards}</div>`;
+  }catch(e){console.error(e);el.innerHTML='<div style="font-size:12px;color:var(--text-3)">Could not load capital data.</div>';}
+}
+
+
 async function loadBudgetHealthStrip(){
   const el=document.getElementById('budget-health-strip');
   if(!el)return;
   try{
+    // Only fetch what we need — no select('*')
     const [{data:lines},{data:pmts}]=await Promise.all([
-      sb.from('sources_uses').select('id,deal_id,section,amount,category').eq('section','use'),
-      sb.from('payments').select('deal_id,amount,direction,su_id').eq('direction','Outgoing')
+      sb.from('sources_uses').select('id,deal_id,amount').eq('section','use'),
+      sb.from('payments').select('su_id,amount,deal_id').eq('direction','Outgoing').not('su_id','is',null)
     ]);
     if(!lines||!lines.length){el.innerHTML='<div style="font-size:12px;color:var(--text-3)">No budget lines added yet — add lines to deals to see progress here.</div>';return;}
     const dealBudgets={};
@@ -1404,7 +1480,7 @@ async function confirmAFImport(dealId){
 // ── IMAGES TAB ────────────────────────────────────
 function renderImages(deal){
   const imgs=deal.images||[];
-  const cats=['Exterior','Interior','Site','Construction Progress','Renderings','Other'];
+  const cats=['Legal','Renderings','Exterior','Interior','Site','Construction Progress','Other'];
   const grouped={};
   imgs.forEach(img=>{const c=img.category||'Other';if(!grouped[c])grouped[c]=[];grouped[c].push(img);});
   return`
@@ -1442,7 +1518,7 @@ function renderImages(deal){
 
 // ── MODAL: ADD IMAGE ──────────────────────────────
 function openAddImage(dealId){
-  const cats=['Exterior','Interior','Site','Construction Progress','Renderings','Other'];
+  const cats=['Legal','Renderings','Exterior','Interior','Site','Construction Progress','Other'];
   openModal('modal-link',`
     <button class="modal-close" onclick="closeModal('modal-link')">×</button>
     <div class="modal-title">Add Image</div>
@@ -1493,7 +1569,7 @@ let taskDealFilter='all';
 
 async function renderTasks(){
   const [{data:tasks},{data:deals}]=await Promise.all([
-    sb.from('tasks').select('*, deals(name,id)').order('due_date'),
+    sb.from('tasks').select('*, deals(name,id)').order('due_date').order('status'),
     sb.from('deals').select('id,name').order('name')
   ]);
   allTasks=tasks||[];
